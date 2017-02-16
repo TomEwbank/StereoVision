@@ -21,6 +21,7 @@
 #include <unordered_map>
 #include <plane/Plane.h>
 #include <math.h>
+#include <algorithm>
 
 using namespace std;
 using namespace cv;
@@ -28,6 +29,26 @@ using namespace sparsestereo;
 using namespace boost;
 using namespace boost::posix_time;
 using namespace GEOM_FADE2D;
+
+struct ConfidentSupport
+{
+    int x;
+    int y;
+    float disparity;
+    char cost;
+};
+
+struct InvalidMatch {
+    int x;
+    int y;
+    char cost;
+};
+
+struct ConfidenceMatching
+{
+    ConfidentSupport** supportCost;
+    InvalidMatch** invalidMatches;
+};
 
 
 struct MeshTriangle
@@ -81,8 +102,11 @@ void line2(Mat& img, const Point& start, const Point& end,
 }
 
 
-void costEvaluation(const Mat_<unsigned int>& censusLeft, const Mat_<unsigned int>& censusRight,
-                    const vector<Point>& highGradPts, const Mat_<float>& disparities, Mat_<char>& matchingCosts) {
+void costEvaluation(const Mat_<unsigned int>& censusLeft,
+                    const Mat_<unsigned int>& censusRight,
+                    const vector<Point>& highGradPts,
+                    const Mat_<float>& disparities,
+                    Mat_<char>& matchingCosts) {
     HammingDistance h;
     vector<Point>::const_iterator i;
     for( i = highGradPts.begin(); i != highGradPts.end(); i++){
@@ -93,6 +117,63 @@ void costEvaluation(const Mat_<unsigned int>& censusLeft, const Mat_<unsigned in
     }
 
 }
+
+
+ConfidenceMatching disparityRefinement(const vector<Point>& highGradPts,
+                                       const Mat_<float>& disparities,
+                                       const Mat_<char>& matchingCosts,
+                                       const char tLow, const char tHigh,
+                                       const unsigned int occGridSize,
+                                       Mat_<float>& finalDisparities,
+                                       Mat_<char>& finalCosts) {
+
+    unsigned int occGridHeight = disparities.rows/occGridSize;
+    unsigned int occGridWidth = disparities.cols/occGridSize;
+
+    ConfidentSupport confSupp[occGridHeight][occGridWidth];
+    InvalidMatch invalidMatches[occGridHeight][occGridWidth];
+
+    // Initialization of cost matrices for confident supports and invalid matches
+    ConfidentSupport supp0 = {0,0,0,tLow};
+    InvalidMatch inv0 = {0,0,tHigh};
+    for(int j=0; j<occGridHeight; ++j) {
+        for(int i=0; i<occGridWidth; ++i) {
+            confSupp[j][i] = supp0;
+            invalidMatches[j][i] = inv0;
+        }
+    }
+
+    vector<Point>::const_iterator it;
+    for( it = highGradPts.begin(); it != highGradPts.end(); it++) {
+        int u = it->x;
+        int v = it->y;
+        float d = disparities.ptr(v)[u];
+        int mc = matchingCosts.ptr(v)[u];
+
+        // Establish occupancy grid for resampled points
+        int i = u/occGridSize;
+        int j = v/occGridSize;
+
+        // If matching cost is lower than previous best final cost
+        if (mc < finalCosts.ptr(v)[u]) {
+            finalDisparities.ptr(v)[u] = d;
+            finalCosts.ptr(v)[u] = mc;
+        }
+
+        // If matching cost is lower than previous best valid cost
+        if (mc < tLow && mc < confSupp[j][i].cost)
+            confSupp[j][i] = {u,v,d,mc};
+
+        // If matching cost is higher than previous worst invalid cost
+        if (mc > tHigh && mc > invalidMatches[j][i].cost)
+            confSupp[j][i] = {u,v,mc};
+
+    }
+
+    ConfidenceMatching cm = {confSupp, invalidMatches};
+    return cm;
+}
+
 
 
 int main(int argc, char** argv) {
@@ -400,6 +481,15 @@ int main(int argc, char** argv) {
         cv::normalize(disparities, dst, 0, 1, cv::NORM_MINMAX);
         imshow("Stereo", dst);
         waitKey();
+
+
+        // tests
+        ConfidentSupport s = {1,2,1.5,4};
+        ConfidentSupport testMat[2][2];
+        testMat[0][0] = s;
+        cout << testMat[0][0].x << endl;
+        s.x = 2;
+        cout << testMat[0][0].x << endl;
 
 
         // Clean up
