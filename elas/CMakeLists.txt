@@ -1,0 +1,12 @@
+add_library(elas
+        descriptor.cpp
+        descriptor.h
+        elas.cpp
+        elas.h
+        filter.cpp
+        filter.h
+        image.h
+        matrix.cpp
+        timer.h
+        triangle.cpp
+        triangle.h)
