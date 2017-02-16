@@ -81,7 +81,6 @@ void line2(Mat& img, const Point& start, const Point& end,
 }
 
 
-
 void costEvaluation(const Mat_<unsigned int>& censusLeft, const Mat_<unsigned int>& censusRight,
                     const vector<Point>& highGradPts, const Mat_<float>& disparities, Mat_<char>& matchingCosts) {
     HammingDistance h;
