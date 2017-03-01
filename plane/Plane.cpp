@@ -24,7 +24,7 @@ Plane::Plane(float a, float b, float c) {
     this->c = c;
 }
 
-Plane::Plane(const Triangle2* triangle, Mat_<float> depthMatrix) {
+Plane::Plane(const Triangle2* triangle, const Mat_<float> depthMatrix) {
     unsigned long size = 3;
     std::vector<std::vector<double>> coefficients;
     for(unsigned long i = 0; i < size; ++i) {
@@ -38,24 +38,24 @@ Plane::Plane(const Triangle2* triangle, Mat_<float> depthMatrix) {
     }
 
 
-    std::cout << std::endl << "Calculating plane parameters..." << std::endl;
+    //std::cout << std::endl << "Calculating plane parameters..." << std::endl;
     ptime lastTime = microsec_clock::local_time();
     CramerTheorem calculator(size, coefficients);
     calculator.calculate();
     time_duration elapsed = (microsec_clock::local_time() - lastTime);
-    cout << "Time of calculation: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
+    //cout << "Time of calculation: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
     switch(calculator.getResult()) {
         case CramerResult::NO_RESULT:
-            std::cout << "No results (system is false)" << std::endl;
+            //std::cout << "No results (system is false)" << std::endl;
             break;
         case CramerResult::INFINITE_RESULTS:
-            std::cout << "Infinite results (system is true for every real x-es)" << std::endl;
+            //std::cout << "Infinite results (system is true for every real x-es)" << std::endl;
             break;
         case CramerResult::FINITE_RESULTS:
-            std::cout << "Finite results:" << std::endl;
+            //std::cout << "Finite results:" << std::endl;
             std::vector<double> results = calculator.getFiniteResults();
             for(int i = 0; i < size; ++i) {
-                std::cout << "x" << (i + 1) << " = " << results[i] << std::endl;
+                //std::cout << "x" << (i + 1) << " = " << results[i] << std::endl;
             }
             a = results[0];
             b = results[1];

@@ -44,10 +44,51 @@ struct InvalidMatch {
     char cost;
 };
 
-struct ConfidenceMatching
+class PotentialSupports
 {
-    ConfidentSupport** supportCost;
-    InvalidMatch** invalidMatches;
+    vector<ConfidentSupport> confidentSupports;
+    vector<InvalidMatch> invalidMatches;
+    unsigned int rows, cols;
+
+public:
+    PotentialSupports(int height, int width, char tLow, char tHigh) {
+        rows = height;
+        cols = width;
+        ConfidentSupport supp0 = {0,0,0,tLow};
+        InvalidMatch inv0 = {0,0,tHigh};
+        for(int j=0; j<rows; ++j) {
+            for(int i=0; i<cols; ++i) {
+                confidentSupports.push_back(supp0);
+                invalidMatches.push_back(inv0);
+            }
+        }
+    }
+
+    unsigned int getOccGridHeight() {
+        return rows;
+    }
+
+    unsigned int getOccGridWidth() {
+        return cols;
+    }
+
+    ConfidentSupport getConfidentSupport(int u, int v) {
+        return confidentSupports[v * cols + u];
+    }
+
+    InvalidMatch getInvalidMatch(int u, int v) {
+        return invalidMatches[v * cols + u];
+    }
+
+    void setConfidentSupport(int u, int v, int x, int y, float dispartity, char cost) {
+        ConfidentSupport cs = {x,y,dispartity,cost};
+        confidentSupports[v * cols + u] = cs;
+    }
+
+    void setInvalidMatch(int u, int v, int x, int y, char cost) {
+        InvalidMatch im = {x,y,cost};
+        invalidMatches[v * cols + u] = im;
+    }
 };
 
 
@@ -107,19 +148,26 @@ void costEvaluation(const Mat_<unsigned int>& censusLeft,
                     const vector<Point>& highGradPts,
                     const Mat_<float>& disparities,
                     Mat_<char>& matchingCosts) {
+
     HammingDistance h;
     vector<Point>::const_iterator i;
     for( i = highGradPts.begin(); i != highGradPts.end(); i++){
         float d = disparities.ptr<float>(i->y)[i->x];
-        unsigned int cl = censusLeft.ptr<float>(i->y)[i->x];
-        unsigned int cr = censusRight.ptr<float>(i->y)[i->x-(int)floor(d+0.5)];
-        matchingCosts.ptr<float>(i->y)[i->x] = h.calculate(cl,cr);
+        int xRight = i->x-(int)floor(d+0.5);
+
+        if (xRight < 2)
+            continue;
+        else {
+            unsigned int cl = censusLeft.ptr<unsigned int>(i->y)[i->x];
+            unsigned int cr = censusRight.ptr<unsigned int>(i->y)[xRight];
+            matchingCosts.ptr<char>(i->y)[i->x] = h.calculate(cl, cr);
+        }
     }
 
 }
 
 
-ConfidenceMatching disparityRefinement(const vector<Point>& highGradPts,
+PotentialSupports disparityRefinement(const vector<Point>& highGradPts,
                                        const Mat_<float>& disparities,
                                        const Mat_<char>& matchingCosts,
                                        const char tLow, const char tHigh,
@@ -130,49 +178,120 @@ ConfidenceMatching disparityRefinement(const vector<Point>& highGradPts,
     unsigned int occGridHeight = disparities.rows/occGridSize;
     unsigned int occGridWidth = disparities.cols/occGridSize;
 
-    ConfidentSupport confSupp[occGridHeight][occGridWidth];
-    InvalidMatch invalidMatches[occGridHeight][occGridWidth];
-
-    // Initialization of cost matrices for confident supports and invalid matches
-    ConfidentSupport supp0 = {0,0,0,tLow};
-    InvalidMatch inv0 = {0,0,tHigh};
-    for(int j=0; j<occGridHeight; ++j) {
-        for(int i=0; i<occGridWidth; ++i) {
-            confSupp[j][i] = supp0;
-            invalidMatches[j][i] = inv0;
-        }
-    }
+    PotentialSupports ps(occGridHeight, occGridWidth, tLow, tHigh);
 
     vector<Point>::const_iterator it;
     for( it = highGradPts.begin(); it != highGradPts.end(); it++) {
         int u = it->x;
         int v = it->y;
-        float d = disparities.ptr(v)[u];
-        int mc = matchingCosts.ptr(v)[u];
+        float d = disparities.ptr<float>(v)[u];
+        char mc = matchingCosts.ptr<char>(v)[u];
 
-        // Establish occupancy grid for resampled points
-        int i = u/occGridSize;
-        int j = v/occGridSize;
+        // Get occupancy grid indices for the considered point
+        int i = u / occGridSize;
+        int j = v / occGridSize;
 
         // If matching cost is lower than previous best final cost
         if (mc < finalCosts.ptr(v)[u]) {
-            finalDisparities.ptr(v)[u] = d;
-            finalCosts.ptr(v)[u] = mc;
+            finalDisparities.ptr<float>(v)[u] = d;
+            finalCosts.ptr<char>(v)[u] = mc;
         }
 
         // If matching cost is lower than previous best valid cost
-        if (mc < tLow && mc < confSupp[j][i].cost)
-            confSupp[j][i] = {u,v,d,mc};
+        if (mc < tLow && mc < ps.getConfidentSupport(i,j).cost)
+            ps.setConfidentSupport(i, j, u, v, d, mc);
 
         // If matching cost is higher than previous worst invalid cost
-        if (mc > tHigh && mc > invalidMatches[j][i].cost)
-            confSupp[j][i] = {u,v,mc};
+        if (mc > tHigh && mc > ps.getInvalidMatch(i,j).cost)
+            ps.setInvalidMatch(i, j, u, v, mc);
 
     }
 
-    ConfidenceMatching cm = {confSupp, invalidMatches};
-    return cm;
+    return ps;
 }
+
+ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
+                                  const Mat_<unsigned int>& censusRight,
+                                  InvalidMatch leftPoint, int maxDisparity) {
+
+    const unsigned int *rightEpipolar = censusRight.ptr<unsigned int>(leftPoint.y);
+    HammingDistance h;
+    unsigned int censusRef = censusLeft.ptr<unsigned int>(leftPoint.y)[leftPoint.x];
+    char minCost = h.calculate(censusRef,rightEpipolar[leftPoint.x])+1;
+    int matchingX = leftPoint.x;
+    for(int i = leftPoint.x; i>=5 && i>(leftPoint.x-maxDisparity); --i) {
+        char cost = h.calculate(censusRef,rightEpipolar[i]);
+
+        if(cost < minCost) {
+            matchingX = i;
+            minCost = cost;
+        }
+    }
+
+    ConfidentSupport result = {leftPoint.x, leftPoint.y, (float)(leftPoint.x-matchingX), minCost};
+
+    return result;
+
+//    HammingDistance h;
+//    int minCost = 32*5*5;
+//    int matchingX = leftPoint.x;
+//    for(int i = leftPoint.x; i>=5 && i>(leftPoint.x-maxDisparity); --i) {
+//        int cost = 0;
+//        for (int m=0; m<=0; ++m) {
+//            const unsigned int* cl = censusLeft.ptr<unsigned int>(leftPoint.y+m);
+//            const unsigned int* cr = censusRight.ptr<unsigned int>(leftPoint.y+m);
+//            for (int n = 0; n <= 0; ++n) {
+//                cost += (int) h.calculate(cl[i+n], cr[i+n]);
+//            }
+//        }
+//
+//        if(cost < minCost) {
+//            matchingX = i;
+//            minCost = cost;
+//        }
+//    }
+//
+//    ConfidentSupport result = {leftPoint.x, leftPoint.y, (float) (leftPoint.x-matchingX), 0};
+//
+//    return result;
+}
+
+void supportResampling(Fade_2D &mesh,
+                       PotentialSupports &ps,
+                       const Mat_<unsigned int> &censusLeft,
+                       const Mat_<unsigned int> &censusRight,
+                       Mat_<float> &disparities,
+                       char tLow, char tHigh, int maxDisp) {
+
+    unsigned int occGridHeight = ps.getOccGridHeight();
+    unsigned int occGridWidth = ps.getOccGridWidth();
+    for (int j = 0; j < occGridHeight; ++j) {
+        for (int i = 0; i < occGridWidth; ++i) {
+
+            // sparse epipolar stereo matching for invalid pixels and add them to support points
+            InvalidMatch invalid = ps.getInvalidMatch(i,j);
+            if (invalid.cost > tHigh) {
+                ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, invalid, maxDisp);
+                if (newSupp.x != -1 && newSupp.cost<tLow) {
+                    disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
+                    Point2 p(newSupp.x, newSupp.y);
+                    mesh.insert(p);
+                }
+            }
+
+            // add confident pixels to support points
+            ConfidentSupport newSupp = ps.getConfidentSupport(i,j);
+            cout << newSupp.x << " " << newSupp.y << endl;
+            if (newSupp.cost < tLow) {
+                disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
+                Point2 p(newSupp.x, newSupp.y);
+                mesh.insert(p);
+            }
+        }
+    }
+}
+
+
 
 
 
@@ -184,6 +303,9 @@ int main(int argc, char** argv) {
         int maxDisp = 100;
         int leftRightStep = 2;
         uchar gradThreshold = 128; // [0,255], disparity will be computed only for points with a higher absolute gradient
+        char tLow = 5;
+        char tHigh = 15;
+        int nIters = 2;
 
         // Feature detection parameters
         double adaptivity = 1.0;
@@ -238,9 +360,9 @@ int main(int argc, char** argv) {
         vector<Point> highGradPoints;
         int v = 0;
         Mat highGradMask(grd.rows, grd.cols, CV_8U, Scalar(0));
-        for(int j = 0; j < abs_grd.rows; ++j) {
+        for(int j = 2; j < abs_grd.rows-2; ++j) {
             uchar* pixel = abs_grd.ptr(j);
-            for (int i = 0; i < abs_grd.cols; ++i) {
+            for (int i = 2; i < abs_grd.cols-2; ++i) {
                 if (pixel[i] > gradThreshold) {
                     highGradPoints.push_back(Point(i, j));
                     highGradMask.at<uchar>(highGradPoints[v]) = (uchar) 200;
@@ -330,166 +452,202 @@ int main(int argc, char** argv) {
              << "Features detected in right image: " << keypointsRight.size() << endl
              << "Percentage of matched features: " << (100.0 * correspondences.size() / keypointsLeft.size()) << "%" << endl;
 
+//        // Highlight matches as colored boxes
+//        Mat_<Vec3b> screen(leftImg.rows, leftImg.cols);
+//        cvtColor(leftImg, screen, CV_GRAY2BGR);
+//
+//        for(int i=0; i<(int)correspondences.size(); i++) {
+//            double scaledDisp = (double)correspondences[i].disparity() / maxDisp;
+//            Vec3b color;
+//            if(scaledDisp > 0.5)
+//                color = Vec3b(0, (1 - scaledDisp)*512, 255);
+//            else color = Vec3b(0, 255, scaledDisp*512);
+//
+//            rectangle(screen, correspondences[i].imgLeft->pt - Point2f(2,2),
+//                      correspondences[i].imgLeft->pt + Point2f(2, 2),
+//                      (Scalar) color, CV_FILLED);
+//        }
+//
+//        // Display image and wait
+//        namedWindow("Sparse stereo");
+//        imshow("Sparse stereo", screen);
+//        waitKey();
+//
+//
+//        // Create the triangulation mesh & the color disparity map
+//        Fade_2D dt;
+//
+//        for(int i=0; i<(int)correspondences.size(); i++) {
+//            float x = correspondences[i].imgLeft->pt.x;
+//            float y = correspondences[i].imgLeft->pt.y;
+//            float d = correspondences[i].disparity();
+//
+//            disparities.at<float>(Point(x,y)) = d;
+//
+//            Point2 p(x, y);
+//            dt.insert(p);
+//        }
+//
+        // Init final disparity map and cost map
+        Mat_<float> finalDisp(leftImg.rows, leftImg.cols, (float) 0);
+        Mat_<char> finalCosts(leftImg.rows, leftImg.cols, (char) 25);
+        unsigned int occGridSize = 32;
 
+        for(int j = 2; j<leftImg.rows-2; ++j) {
+            float* fdisp = finalDisp.ptr<float>(j);
 
-        // Highlight matches as colored boxes
-        Mat_<Vec3b> screen(leftImg.rows, leftImg.cols);
-        cvtColor(leftImg, screen, CV_GRAY2BGR);
-
-        for(int i=0; i<(int)correspondences.size(); i++) {
-            double scaledDisp = (double)correspondences[i].disparity() / maxDisp;
-            Vec3b color;
-            if(scaledDisp > 0.5)
-                color = Vec3b(0, (1 - scaledDisp)*512, 255);
-            else color = Vec3b(0, 255, scaledDisp*512);
-
-            rectangle(screen, correspondences[i].imgLeft->pt - Point2f(2,2),
-                      correspondences[i].imgLeft->pt + Point2f(2, 2),
-                      (Scalar) color, CV_FILLED);
-        }
-
-        // Display image and wait
-        namedWindow("Stereo");
-        imshow("Stereo", screen);
-        waitKey();
-
-
-        // Create the triangulation mesh & the color disparity map
-        Fade_2D dt;
-        Mat colorDisparities(leftImg.rows, leftImg.cols, CV_8UC3, Scalar(0,0,0));
-
-        for(int i=0; i<(int)correspondences.size(); i++) {
-            float x = correspondences[i].imgLeft->pt.x;
-            float y = correspondences[i].imgLeft->pt.y;
-            float d = correspondences[i].disparity();
-
-            disparities.at<float>(Point(x,y)) = d;
-
-            Point2 p(x, y);
-            dt.insert(p);
-
-            double scaledDisp = (double) d / maxDisp;
-            Vec3b color;
-            if(scaledDisp > 0.5)
-                color = Vec3b(0, (1 - scaledDisp)*512, 255);
-            else color = Vec3b(0, 255, scaledDisp*512);
-            colorDisparities.at<Vec3b>(Point(x,y)) = color;
-        }
-
-        //Iterate over the triangles to retreive all unique edges
-        std::set<std::pair<Point2*,Point2*> > sEdges;
-        std::vector<Triangle2*> vAllDelaunayTriangles;
-        dt.getTrianglePointers(vAllDelaunayTriangles);
-        for(std::vector<Triangle2*>::iterator it=vAllDelaunayTriangles.begin();it!=vAllDelaunayTriangles.end();++it)
-        {
-            Triangle2* t(*it);
-            for(int i=0;i<3;++i)
-            {
-                Point2* p0(t->getCorner((i+1)%3));
-                Point2* p1(t->getCorner((i+2)%3));
-                if(p0>p1) std::swap(p0,p1);
-                sEdges.insert(std::make_pair(p0,p1));
+            for(int i=2; i<leftImg.cols-2; ++i) {
+                InvalidMatch p = {i,j,0};
+                ConfidentSupport cs = epipolarMatching(censusLeft, censusRight, p, maxDisp);
+                fdisp[i] = cs.disparity;
             }
         }
 
-        // Display mesh
-        Mat_<Vec3b> mesh(leftImg.rows, leftImg.cols);
-        cvtColor(leftImg, mesh, CV_GRAY2BGR);
-        set<std::pair<Point2*,Point2*>>::const_iterator pos;
 
-        for(pos = sEdges.begin(); pos != sEdges.end(); ++pos) {
+//
+//        for (int iter = 1; iter <= nIters; ++iter) {
+//
+//            //Iterate over the triangles to retreive all unique edges
+//            std::set<std::pair<Point2 *, Point2 *> > sEdges;
+//            std::vector<Triangle2 *> vAllDelaunayTriangles;
+//            dt.getTrianglePointers(vAllDelaunayTriangles);
+//            for (std::vector<Triangle2 *>::iterator it = vAllDelaunayTriangles.begin();
+//                 it != vAllDelaunayTriangles.end(); ++it) {
+//                Triangle2 *t(*it);
+//                for (int i = 0; i < 3; ++i) {
+//                    Point2 *p0(t->getCorner((i + 1) % 3));
+//                    Point2 *p1(t->getCorner((i + 2) % 3));
+//                    if (p0 > p1) std::swap(p0, p1);
+//                    sEdges.insert(std::make_pair(p0, p1));
+//                }
+//            }
+//
+//            // Display mesh
+//            Mat_<Vec3b> mesh(leftImg.rows, leftImg.cols);
+//            cvtColor(leftImg, mesh, CV_GRAY2BGR);
+//            set<std::pair<Point2 *, Point2 *>>::const_iterator pos;
+//
+//            for (pos = sEdges.begin(); pos != sEdges.end(); ++pos) {
+//
+//                Point2 *p1 = pos->first;
+//                float scaledDisp = disparities.at<float>(Point(p1->x(), p1->y())) / maxDisp;
+//                Vec3b color1;
+//                if(scaledDisp > 0.5)
+//                    color1 = Vec3b(0, (1 - scaledDisp)*512, 255);
+//                else color1 = Vec3b(0, 255, scaledDisp*512);
+//
+//                Point2 *p2 = pos->second;
+//                scaledDisp = disparities.at<float>(Point(p2->x(), p2->y())) / maxDisp;
+//                Vec3b color2;
+//                if(scaledDisp > 0.5)
+//                    color2 = Vec3b(0, (1 - scaledDisp)*512, 255);
+//                else color2 = Vec3b(0, 255, scaledDisp*512);
+//
+//
+//                line2(mesh, Point(p1->x(), p1->y()), Point(p2->x(), p2->y()), (Scalar) color1, (Scalar) color2);
+//            }
+//
+//            // Display image and wait
+//            namedWindow("Triangular mesh");
+//            imshow("Triangular mesh", mesh);
+//            waitKey();
+//
+//            // Init lookup table for plane parameters
+//            unordered_map<MeshTriangle, Plane> planeTable;
+//
+//            // Disparity interpolation
+//            lastTime = microsec_clock::local_time();
+//            for (int j = 0; j < mesh.rows; ++j) {
+//                float *pixel = disparities.ptr<float>(j);
+//                for (int i = 0; i < mesh.cols; ++i) {
+//                    Point2 pointInPlaneFade = Point2(i, j);
+//                    //Point2f pointInPlaneCv = Point2f(i,j);
+//                    Triangle2 *t = dt.locate(pointInPlaneFade);
+//                    MeshTriangle mt = {t};
+//
+//                    if (t != NULL) {
+//                        unordered_map<MeshTriangle, Plane>::const_iterator got = planeTable.find(mt);
+//                        Plane plane;
+//                        if (got == planeTable.end()) {
+//                            plane = Plane(t, disparities);
+//                            planeTable[mt] = plane;
+//                        } else {
+//                            plane = got->second;
+//                        }
+//                        //disparities.at<float>(pointInPlaneCv) = plane.getDepth(pointInPlaneCv);
+//                        pixel[i] = plane.getDepth(pointInPlaneFade);
+//                    }
+//
+//                }
+//            }
+//            elapsed = (microsec_clock::local_time() - lastTime);
+//            cout << "Time for building dipsarity map: " << elapsed.total_microseconds() / 1.0e6 << "s" << endl;
+//            cout << "plane table size: " << planeTable.size() << endl;
+//
+//            // Display interpolated disparities
+//            cv::Mat dst = disparities/maxDisp;
+//            namedWindow("Full interpolated disparities");
+//            imshow("Full interpolated disparities", dst);
+//            waitKey();
+//
+//            Mat outputImg;
+//            Mat temp = dst*255;
+//            temp.convertTo(outputImg, CV_8UC1);
+//            imwrite("disparity"+to_string(iter)+".png", outputImg);
+//
+//            Mat_<char> matchingCosts(leftImg.rows, leftImg.cols);
+//            costEvaluation(censusLeft, censusRight, highGradPoints, disparities, matchingCosts);
+//            PotentialSupports ps = disparityRefinement(highGradPoints, disparities, matchingCosts,
+//                                                        tLow, tHigh, occGridSize, finalDisp, finalCosts);
+//
+//            // Highlight matches as colored boxes
+//            Mat_<Vec3b> badPts(leftImg.rows, leftImg.cols);
+//            cvtColor(leftImg, badPts, CV_GRAY2BGR);
+//
+//            for(int i = 0; i<ps.getOccGridWidth(); ++i){
+//                for(int j=0; j<ps.getOccGridHeight(); ++j){
+//                    InvalidMatch p = ps.getInvalidMatch(i,j);
+//                    rectangle(badPts, Point2f(p.x,p.y) - Point2f(2,2),
+//                              Point2f(p.x,p.y) + Point2f(2, 2),
+//                              (Scalar) Vec3b(0, 255, 0), CV_FILLED);
+//                }
+//            }
+//            namedWindow("Candidates for epipolar matching");
+//            imshow("Candidates for epipolar matching", badPts);
+//
+            // Display interpolated disparities for high gradient points
+            //cv::normalize(finalDisp, dst, 0, 1, cv::NORM_MINMAX);
+            Mat dst = finalDisp / maxDisp;
+            namedWindow("High gradient disparities");
+            imshow("High gradient disparities", dst);
+            waitKey();
 
-            Point2* p1 = pos->first;
-            Vec3b color1 = colorDisparities.at<Vec3b>(Point(p1->x(),p1->y()));
-
-            Point2* p2 = pos->second;
-            Vec3b color2 = colorDisparities.at<Vec3b>(Point(p2->x(),p2->y()));
-
-            line2(mesh, Point(p1->x(),p1->y()), Point(p2->x(),p2->y()), (Scalar) color1, (Scalar) color2);
-        }
-
-
-        rectangle(mesh, Point2f(700,300)-Point2f(2,2), Point2f(700,300)+Point2f(2,2), (Scalar) Vec3b(255, 0, 0), CV_FILLED);
-
-        // Plane unit testing
-        Point2 pointInPlaneFade = Point2(700,300);
-        Point2f pointInPlaneCv = Point2f(700,300);
-
-        lastTime = microsec_clock::local_time();
-        Triangle2* t = dt.locate(pointInPlaneFade);
-        elapsed = (microsec_clock::local_time() - lastTime);
-        cout << "Time for triangle locate: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
-
-        for (int i=0; i<3; ++i) {
-            Point2f p = Point2f(t->getCorner(i)->x(),t->getCorner(i)->y());
-            cout << "p(" << t->getCorner(i)->x() << ", " << t->getCorner(i)->y() << ", "<< disparities.at<float>(p) << ")" << endl;
-            rectangle(mesh, p-Point2f(2,2), p+Point2f(2,2), (Scalar) Vec3b(255, 0, 0), CV_FILLED);
-        }
-
-        Plane plane = Plane(t, disparities);
-        float disp_700_300 = plane.getDepth(pointInPlaneCv);
-        cout << "disp(700,300) = " << disp_700_300 << endl;
-
-        double scaledDisp = (double)disp_700_300 / maxDisp;
-        Vec3b color;
-        if(scaledDisp > 0.5)
-            color = Vec3b(0, (1 - scaledDisp)*512, 255);
-        else color = Vec3b(0, 255, scaledDisp*512);
-
-        rectangle(mesh, pointInPlaneCv-Point2f(2,2), pointInPlaneCv+Point2f(2,2), (Scalar) color, CV_FILLED);
-
-        // Display image and wait
-        namedWindow("Stereo");
-        imshow("Stereo", mesh);
-        waitKey();
-
-
-        // Init lookup table for plane parameters
-        unordered_map<MeshTriangle, Plane> planeTable;
-
-        lastTime = microsec_clock::local_time();
-        for (int j = 0; j<mesh.rows; ++j) {
-            float* pixel = disparities.ptr<float>(j);
-            for (int i = 0; i<mesh.cols; ++i) {
-                Point2 pointInPlaneFade = Point2(i,j);
-                //Point2f pointInPlaneCv = Point2f(i,j);
-                Triangle2* t = dt.locate(pointInPlaneFade);
-                MeshTriangle mt = {t};
-
-                if (t != NULL) {
-                    unordered_map<MeshTriangle, Plane>::const_iterator got = planeTable.find(mt);
-                    Plane plane;
-                    if (got == planeTable.end()) {
-                        plane = Plane(t, disparities);
-                        planeTable[mt] = plane;
-                    } else {
-                        plane = got->second;
+            Mat finalColorDisp(finalDisp.rows, finalDisp.cols, CV_8UC3, Scalar(0, 0, 0));
+            for (int y = 0; y < finalColorDisp.rows; ++y) {
+                Vec3b *colorPixel = finalColorDisp.ptr<Vec3b>(y);
+                float *pixel = dst.ptr<float>(y);
+                for (int x = 0; x < finalColorDisp.cols; ++x)
+                    if (pixel[x] > 0) {
+                        Vec3b color;
+                        if (pixel[x] > 0.5)
+                            color = Vec3b(0, (1 - pixel[x]) * 512, 255);
+                        else color = Vec3b(0, 255, pixel[x] * 512);
+                        colorPixel[x] = color;
                     }
-                    //disparities.at<float>(pointInPlaneCv) = plane.getDepth(pointInPlaneCv);
-                    pixel[i] = plane.getDepth(pointInPlaneFade);
-                }
-
             }
-        }
-        elapsed = (microsec_clock::local_time() - lastTime);
-        cout << "Time for building dipsarity map: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
-        cout << "plane table size: " << planeTable.size() << endl;
 
-        // Display first interpolated disparities and wait
-        namedWindow("Stereo");
-        cv::Mat dst;
-        cv::normalize(disparities, dst, 0, 1, cv::NORM_MINMAX);
-        imshow("Stereo", dst);
-        waitKey();
+            namedWindow("High gradient color disparities");
+            imshow("High gradient color disparities", finalColorDisp);
+            waitKey();
+//
+//            if (iter != nIters) {
+//
+//                // Support resampling
+//                supportResampling(dt, ps, censusLeft, censusRight, disparities, tLow, tHigh, maxDisp);
+//                occGridSize = max((unsigned int) 1, occGridSize / 2);
+//            }
+//        }
 
-
-        // tests
-        ConfidentSupport s = {1,2,1.5,4};
-        ConfidentSupport testMat[2][2];
-        testMat[0][0] = s;
-        cout << testMat[0][0].x << endl;
-        s.x = 2;
-        cout << testMat[0][0].x << endl;
 
 
         // Clean up
@@ -497,6 +655,13 @@ int main(int argc, char** argv) {
         delete rightFeatureDetector;
         if(rectification != NULL)
             delete rectification;
+
+//        //tests
+//        HammingDistance h;
+//        unsigned int a = 15;
+//        unsigned int b = 491535;
+//        int d = h.calculate(b,a);
+//        cout << d << endl;
 
         return 0;
     }
