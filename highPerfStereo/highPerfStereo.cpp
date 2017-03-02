@@ -258,10 +258,10 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
     int matchingX = leftPoint.x;
     for(int i = leftPoint.x; i>=16 && i>(leftPoint.x-maxDisparity); --i) {
         int cost = 0;
-        for (int m=-8; m<=8; ++m) {
+        for (int m=-2; m<=2; ++m) {
             const unsigned int* cl = censusLeft.ptr<unsigned int>(leftPoint.y+m);
             const unsigned int* cr = censusRight.ptr<unsigned int>(leftPoint.y+m);
-            for (int n = -8; n <= 8; ++n) {
+            for (int n = -2; n <= 2; ++n) {
                 cost += (int) h.calculate(cl[leftPoint.x+n], cr[i+n]);
             }
         }
@@ -272,7 +272,7 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
         }
     }
 
-    ConfidentSupport result(leftPoint.x, leftPoint.y, (float) (leftPoint.x-matchingX), 0);
+    ConfidentSupport result(leftPoint.x, leftPoint.y, (float) (leftPoint.x-matchingX), h.calculate(censusLeft.ptr<unsigned int>(leftPoint.y)[leftPoint.x], censusRight.ptr<unsigned int>(leftPoint.y)[matchingX]));
 
     return result;
 }
@@ -290,15 +290,15 @@ void supportResampling(Fade_2D &mesh,
         for (unsigned int i = 0; i < occGridWidth; ++i) {
 
             // sparse epipolar stereo matching for invalid pixels and add them to support points
-            InvalidMatch invalid = ps.getInvalidMatch(i,j);
-            if (invalid.cost > tHigh) {
-                ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, invalid, maxDisp);
-                //if (newSupp.x != -1 && newSupp.cost<tLow) {
-                    disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
-                    Point2 p(newSupp.x, newSupp.y);
-                    mesh.insert(p);
-                //}
-            }
+//            InvalidMatch invalid = ps.getInvalidMatch(i,j);
+//            if (invalid.cost > tHigh) {
+//                ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, invalid, maxDisp);
+//                if (newSupp.cost<tLow) {
+//                    disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
+//                    Point2 p(newSupp.x, newSupp.y);
+//                    mesh.insert(p);
+//                }
+//            }
 
             // add confident pixels to support points
             ConfidentSupport newSupp = ps.getConfidentSupport(i,j);
@@ -321,7 +321,7 @@ int main(int argc, char** argv) {
         int maxDisp = 100;
         int leftRightStep = 2;
         uchar gradThreshold = 128; // [0,255], disparity will be computed only for points with a higher absolute gradient
-        char tLow = 5;
+        char tLow = 3;
         char tHigh = 20;
         int nIters = 4;
         double resizeFactor = 1;

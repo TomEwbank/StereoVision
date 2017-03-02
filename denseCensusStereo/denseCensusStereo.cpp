@@ -17,7 +17,6 @@
 #include <sparsestereo/census-inl.h>
 #include <sparsestereo/imageconversion.h>
 #include <sparsestereo/censuswindow.h>
-#include <fade2d/Fade_2D.h>
 #include <unordered_map>
 #include <plane/Plane.h>
 #include <math.h>
@@ -82,7 +81,7 @@ void line2(Mat& img, const Point& start, const Point& end,
         // then you have to deal with mat type and channel number yourself
         img(Rect(iter.pos(), Size(1, 1))) = c1 * (1.0 - alpha) + c2 * alpha;
     }
-
+}
 
 ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
                                   const Mat_<unsigned int>& censusRight,
@@ -109,12 +108,12 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
     HammingDistance h;
     int minCost =  2147483647;//32*5*5;
     int matchingX = leftPoint.x;
-    for(int i = leftPoint.x; i>=16 && i>(leftPoint.x-maxDisparity); --i) {
+    for(int i = leftPoint.x; i>=5 && i>(leftPoint.x-maxDisparity); --i) {
         int cost = 0;
-        for (int m=-8; m<=8; ++m) {
+        for (int m=-2; m<=2; ++m) {
             const unsigned int* cl = censusLeft.ptr<unsigned int>(leftPoint.y+m);
             const unsigned int* cr = censusRight.ptr<unsigned int>(leftPoint.y+m);
-            for (int n = -8; n <= 8; ++n) {
+            for (int n = -2; n <= 2; ++n) {
                 cost += (int) h.calculate(cl[leftPoint.x+n], cr[i+n]);
             }
         }
@@ -225,23 +224,23 @@ int main(int argc, char** argv) {
         imshow("High gradient disparities", dst);
         waitKey();
 
-        Mat finalColorDisp(finalDisp.rows, finalDisp.cols, CV_8UC3, Scalar(0, 0, 0));
-        for (int y = 0; y < finalColorDisp.rows; ++y) {
-            Vec3b *colorPixel = finalColorDisp.ptr<Vec3b>(y);
-            float *pixel = dst.ptr<float>(y);
-            for (int x = 0; x < finalColorDisp.cols; ++x)
-                if (pixel[x] > 0) {
-                    Vec3b color;
-                    if (pixel[x] > 0.5)
-                        color = Vec3b(0, (1 - pixel[x]) * 512, 255);
-                    else color = Vec3b(0, 255, pixel[x] * 512);
-                    colorPixel[x] = color;
-                }
-        }
-
-        namedWindow("High gradient color disparities");
-        imshow("High gradient color disparities", finalColorDisp);
-        waitKey();
+//        Mat finalColorDisp(finalDisp.rows, finalDisp.cols, CV_8UC3, Scalar(0, 0, 0));
+//        for (int y = 0; y < finalColorDisp.rows; ++y) {
+//            Vec3b *colorPixel = finalColorDisp.ptr<Vec3b>(y);
+//            float *pixel = dst.ptr<float>(y);
+//            for (int x = 0; x < finalColorDisp.cols; ++x)
+//                if (pixel[x] > 0) {
+//                    Vec3b color;
+//                    if (pixel[x] > 0.5)
+//                        color = Vec3b((1 - pixel[x]) * 512, 0, 255);
+//                    else color = Vec3b(0, 255, pixel[x] * 512);
+//                    colorPixel[x] = color;
+//                }
+//        }
+//
+//        namedWindow("High gradient color disparities");
+//        imshow("High gradient color disparities", finalColorDisp);
+//        waitKey();
 
         return 0;
     }
