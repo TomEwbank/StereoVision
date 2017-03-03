@@ -12,7 +12,6 @@ using namespace cv;
 vector< vector< Point3f > > object_points;
 vector< vector< Point2f > > image_points;
 vector< Point2f > corners;
-vector< vector< Point2f > > left_img_points;
 
 Mat img, gray;
 Size im_size;
