@@ -16,15 +16,19 @@ vector< vector< Point2f > > left_img_points, right_img_points;
 
 Mat img1, img2, gray1, gray2;
 
-void load_image_points(int board_width, int board_height, int num_imgs, float square_size,
-                       string leftimg_dir, string rightimg_dir, string leftimg_filename, string rightimg_filename) {
+void load_image_points(int board_width, int board_height, int num_imgs, float square_size, bool showChessboard,
+                       string leftimg_dir, string rightimg_dir, string leftimg_filename, string rightimg_filename, string fileExtension) {
 
     Size board_size = Size(board_width, board_height);
     int board_n = board_width * board_height;
 
     for (int i = 1; i <= num_imgs; i++) {
-        string left_img = leftimg_dir+leftimg_filename+to_string(i)+".jpg";
-        string right_img = rightimg_dir+rightimg_filename+to_string(i)+".jpg";
+
+        //TODO remmove this if for new set of calibration pics
+        if (i == 5) continue;
+
+        string left_img = leftimg_dir+leftimg_filename+to_string(i)+"."+fileExtension;
+        string right_img = rightimg_dir+rightimg_filename+to_string(i)+"."+fileExtension;
         img1 = imread(left_img, CV_LOAD_IMAGE_COLOR);
         img2 = imread(right_img, CV_LOAD_IMAGE_COLOR);
         cvtColor(img1, gray1, CV_BGR2GRAY);
@@ -35,16 +39,26 @@ void load_image_points(int board_width, int board_height, int num_imgs, float sq
         bool found2 = cv::findChessboardCorners(img2, board_size, corners2,
                                            CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
 
-        if (found1) {
-            cv::cornerSubPix(gray1, corners1, cv::Size(5, 5), cv::Size(-1, -1),
-                             cv::TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
-            cv::drawChessboardCorners(gray1, board_size, corners1, found1);
+        if (showChessboard) {
+            if (found1) {
+                cv::cornerSubPix(gray1, corners1, cv::Size(5, 5), cv::Size(-1, -1),
+                                 cv::TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
+                cv::drawChessboardCorners(gray1, board_size, corners1, found1);
+            }
+            if (found2) {
+                cv::cornerSubPix(gray2, corners2, cv::Size(5, 5), cv::Size(-1, -1),
+                                 cv::TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
+                cv::drawChessboardCorners(gray2, board_size, corners2, found2);
+            }
+
+            namedWindow("left");
+            imshow("left", gray1);
+            waitKey();
+            namedWindow("right");
+            imshow("right", gray2);
+            waitKey();
         }
-        if (found2) {
-            cv::cornerSubPix(gray2, corners2, cv::Size(5, 5), cv::Size(-1, -1),
-                             cv::TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
-            cv::drawChessboardCorners(gray2, board_size, corners2, found2);
-        }
+
 
         vector<Point3f> obj;
         for (int i = 0; i < board_height; i++)
@@ -94,17 +108,19 @@ double computeReprojectionErrors(const vector< vector< Point3f > >& objectPoints
 int main(int argc, char const *argv[])
 {
     int board_width = 9;
-    int board_height = 6;
-    float square_size = 0.02423;
-    string leftimg_dir = "calib_imgs/1/";
-    string rightimg_dir = "calib_imgs/1/";
-    string leftimg_filename = "left";
-    string rightimg_filename = "right";
+    int board_height = 7;
+    float square_size = 0.0235;//0.02423;
+    string leftimg_dir = "calib_imgs/left/";
+    string rightimg_dir = "calib_imgs/right/";
+    string leftimg_filename = "l";
+    string rightimg_filename = "r";
+    string fileExtension = "ppm";
     string out_file = "stereoCalib.yml";
-    int num_imgs = 29;
+    int num_imgs = 20;
+    bool showChessboard = false;
 
-    load_image_points(board_width, board_height, num_imgs, square_size,
-               leftimg_dir, rightimg_dir, leftimg_filename, rightimg_filename);
+    load_image_points(board_width, board_height, num_imgs, square_size, showChessboard,
+               leftimg_dir, rightimg_dir, leftimg_filename, rightimg_filename, fileExtension);
 
     printf("Starting Calibration\n");
     Mat K1, K2;
@@ -149,6 +165,21 @@ int main(int argc, char const *argv[])
     fs1 << "Q" << Q;
 
     printf("Done Rectification\n");
+
+    // Rectify an image
+    Mat img1 = imread("distord_left.ppm", CV_LOAD_IMAGE_COLOR);
+    Mat img2 = imread("distord_right.ppm", CV_LOAD_IMAGE_COLOR);
+
+    cv::Mat lmapx, lmapy, rmapx, rmapy;
+    cv::Mat imgU1, imgU2;
+
+    cv::initUndistortRectifyMap(K1, D1, R1, P1, img1.size(), CV_32F, lmapx, lmapy);
+    cv::initUndistortRectifyMap(K2, D2, R2, P2, img2.size(), CV_32F, rmapx, rmapy);
+    cv::remap(img1, imgU1, lmapx, lmapy, cv::INTER_LINEAR);
+    cv::remap(img2, imgU2, rmapx, rmapy, cv::INTER_LINEAR);
+
+    imwrite("rect_left.ppm", imgU1);
+    imwrite("rect_right.ppm", imgU2);
 
     return 0;
 }

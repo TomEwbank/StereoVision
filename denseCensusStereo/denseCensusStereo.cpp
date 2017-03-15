@@ -21,6 +21,7 @@
 #include <plane/Plane.h>
 #include <math.h>
 #include <algorithm>
+#include "CensusTransform.h"
 
 using namespace std;
 using namespace cv;
@@ -129,6 +130,55 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
     return result;
 }
 
+ConfidentSupport epipolarMatching(CensusTransform& censusLeft,
+                                  CensusTransform& censusRight,
+                                  InvalidMatch leftPoint, int maxDisparity, int aggregationSize) {
+
+//    const unsigned int *rightEpipolar = censusRight.ptr<unsigned int>(leftPoint.y);
+//    HammingDistance h;
+//    unsigned int censusRef = censusLeft.ptr<unsigned int>(leftPoint.y)[leftPoint.x];
+//    int minCost = h.calculate(censusRef,rightEpipolar[leftPoint.x])+1;
+//    int matchingX = leftPoint.x;
+//    for(int i = leftPoint.x; i>=5 && i>(leftPoint.x-maxDisparity); --i) {
+//        int cost = h.calculate(censusRef,rightEpipolar[i]);
+//
+//        if(cost < minCost) {
+//            matchingX = i;
+//            minCost = cost;
+//        }
+//    }
+//
+//    ConfidentSupport result = {leftPoint.x, leftPoint.y, (float)(leftPoint.x-matchingX), 0};
+//    //cout  << ">> " << result.x << ", " << result.y << ", " << result.disparity << ", " << result.cost << endl;
+//    return result;
+
+    HammingDistance h;
+    int minCost =  2147483647;//32*5*5;
+    int matchingX = leftPoint.x;
+    for(int i = leftPoint.x; i>=5 && i>(leftPoint.x-maxDisparity); --i) {
+        int cost = 0;
+        for (int m=-aggregationSize; m<=aggregationSize; ++m) {
+
+            for (int n = -aggregationSize; n <= aggregationSize; ++n) {
+                vector<unsigned int> cl = censusLeft.getCensus(leftPoint.x+n, leftPoint.y+m);
+                vector<unsigned int> cr = censusRight.getCensus(i+n, leftPoint.y+m);
+
+                for (int w = 0; w < censusLeft.getNWords(); ++w)
+                    cost += (int) h.calculate(cl[w], cr[w]);
+            }
+        }
+
+        if(cost < minCost) {
+            matchingX = i;
+            minCost = cost;
+        }
+    }
+
+    ConfidentSupport result(leftPoint.x, leftPoint.y, (float) (leftPoint.x-matchingX), 0);
+
+    return result;
+}
+
 
 int main(int argc, char** argv) {
     try {
@@ -197,11 +247,13 @@ int main(int argc, char** argv) {
                 Census::transform5x5(charRight, &censusRight);
             }
         }
+        time_duration elapsed = (microsec_clock::local_time() - lastTime);
+        cout << "Time for census transform: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
 
-
-        // Init final disparity map and cost map
+        // Init final disparity map
         Mat_<float> finalDisp(leftImg.rows, leftImg.cols, (float) 0);
 
+        lastTime = microsec_clock::local_time();
         for(int j = 2; j<leftImg.rows-2; ++j) {
             float* fdisp = finalDisp.ptr<float>(j);
 
@@ -214,7 +266,7 @@ int main(int argc, char** argv) {
         }
 
         // Print statistics
-        time_duration elapsed = (microsec_clock::local_time() - lastTime);
+        elapsed = (microsec_clock::local_time() - lastTime);
         cout << "Time for stereo matching: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
 
 
@@ -223,6 +275,11 @@ int main(int argc, char** argv) {
         namedWindow("High gradient disparities");
         imshow("High gradient disparities", dst);
         waitKey();
+
+        Mat outputImg;
+        Mat temp = dst*255;
+        temp.convertTo(outputImg, CV_8UC1);
+        imwrite("fastCensus.png", outputImg);
 
 //        Mat finalColorDisp(finalDisp.rows, finalDisp.cols, CV_8UC3, Scalar(0, 0, 0));
 //        for (int y = 0; y < finalColorDisp.rows; ++y) {
@@ -241,6 +298,63 @@ int main(int argc, char** argv) {
 //        namedWindow("High gradient color disparities");
 //        imshow("High gradient color disparities", finalColorDisp);
 //        waitKey();
+
+//        cv::Mat_<unsigned char> censusTest;
+//        censusTest = imread("censusTest.png", CV_LOAD_IMAGE_GRAYSCALE);
+//        cv::Mat_<char> charImg(censusTest.rows, censusTest.cols);
+//        ImageConversion::unsignedToSigned(censusTest, &charImg);
+
+        CensusTransform censusLeftBis(leftImg, 5);
+        CensusTransform censusRightBis(rightImg, 5);
+        cout << censusLeftBis.getWidth() << endl;
+        cout << censusLeftBis.getHeight() << endl;
+        cout << censusLeftBis.getMaskSize() << endl;
+        cout << censusLeftBis.getNWords() << endl;
+        cout << censusRightBis.getWidth() << endl;
+        cout << censusRightBis.getHeight() << endl;
+        cout << censusRightBis.getMaskSize() << endl;
+        cout << censusRightBis.getNWords() << endl;
+        elapsed = (microsec_clock::local_time() - lastTime);
+        cout << "Time for census transform BIS: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
+
+//        for (int j=0; j<charImg.rows; ++j) {
+//            for (int i=0; i<charImg.cols; ++i) {
+//                for (int n=0; n<census.getNWords(); ++n) {
+//                    cout << "(" << i << ", " << j << ", " << n << ")" << " --- " << census.getCensus(i,j)[n] << endl;
+//                }
+//            }
+//        }
+
+        // Init final disparity map BIS
+        Mat_<float> finalDispBis(leftImg.rows, leftImg.cols, (float) 0);
+
+        lastTime = microsec_clock::local_time();
+        for(int j = 2; j<leftImg.rows-2; ++j) {
+            float* fdisp = finalDispBis.ptr<float>(j);
+
+            for(int i=2; i<leftImg.cols-2; ++i) {
+                InvalidMatch p = {i,j,0};
+                ConfidentSupport cs = epipolarMatching(censusLeftBis, censusRightBis, p, maxDisp, 2);
+                cout  << "<< " << cs.x << ", " << cs.y << ", " << cs.disparity << ", " << cs.cost << endl;
+                fdisp[i] = cs.disparity;
+            }
+        }
+
+        // Print statistics
+        elapsed = (microsec_clock::local_time() - lastTime);
+        cout << "Time for stereo matching BIS: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
+
+
+        // Display disparity map
+        Mat dstBis = finalDispBis / maxDisp;
+        namedWindow("High gradient disparities");
+        imshow("High gradient disparities", dstBis);
+        waitKey();
+
+        Mat outputImg2;
+        Mat temp2 = dstBis*255;
+        temp.convertTo(outputImg, CV_8UC1);
+        imwrite("fastCensus.png", outputImg2);
 
         return 0;
     }

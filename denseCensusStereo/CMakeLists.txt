@@ -1,2 +1,2 @@
-add_executable(denseCensusStereo denseCensusStereo.cpp)
+add_executable(denseCensusStereo denseCensusStereo.cpp CensusTransform.cpp CensusTransform.h)
 target_link_libraries(denseCensusStereo sparsestereo ${OpenCV_LIBS})

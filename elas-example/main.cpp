@@ -103,13 +103,14 @@ int main (int argc, char** argv) {
 
   // run demo
   if (argc==2 && !strcmp(argv[1],"demo")) {
-    process("img/cones_left.pgm",   "img/cones_right.pgm");
-    process("img/aloe_left.pgm",    "img/aloe_right.pgm");
-    process("img/raindeer_left.pgm","img/raindeer_right.pgm");
-    process("img/urban1_left.pgm",  "img/urban1_right.pgm");
-    process("img/urban2_left.pgm",  "img/urban2_right.pgm");
-    process("img/urban3_left.pgm",  "img/urban3_right.pgm");
-    process("img/urban4_left.pgm",  "img/urban4_right.pgm");
+    process("img/rect_left.pgm",   "img/rect_right.pgm");
+//    process("img/cones_left.pgm",   "img/cones_right.pgm");
+//    process("img/aloe_left.pgm",    "img/aloe_right.pgm");
+//    process("img/raindeer_left.pgm","img/raindeer_right.pgm");
+//    process("img/urban1_left.pgm",  "img/urban1_right.pgm");
+//    process("img/urban2_left.pgm",  "img/urban2_right.pgm");
+//    process("img/urban3_left.pgm",  "img/urban3_right.pgm");
+//    process("img/urban4_left.pgm",  "img/urban4_right.pgm");
     cout << "... done!" << endl;
 
   // compute disparity from input pair

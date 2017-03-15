@@ -290,15 +290,15 @@ void supportResampling(Fade_2D &mesh,
         for (unsigned int i = 0; i < occGridWidth; ++i) {
 
             // sparse epipolar stereo matching for invalid pixels and add them to support points
-//            InvalidMatch invalid = ps.getInvalidMatch(i,j);
-//            if (invalid.cost > tHigh) {
-//                ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, invalid, maxDisp);
-//                if (newSupp.cost<tLow) {
-//                    disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
-//                    Point2 p(newSupp.x, newSupp.y);
-//                    mesh.insert(p);
-//                }
-//            }
+            InvalidMatch invalid = ps.getInvalidMatch(i,j);
+            if (invalid.cost > tHigh) {
+                ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, invalid, maxDisp);
+                if (newSupp.cost<tLow) {
+                    disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
+                    Point2 p(newSupp.x, newSupp.y);
+                    mesh.insert(p);
+                }
+            }
 
             // add confident pixels to support points
             ConfidentSupport newSupp = ps.getConfidentSupport(i,j);
@@ -318,7 +318,7 @@ int main(int argc, char** argv) {
 
         // Stereo matching parameters
         double uniqueness = 0.7;
-        int maxDisp = 100;
+        int maxDisp = 30;
         int leftRightStep = 2;
         uchar gradThreshold = 128; // [0,255], disparity will be computed only for points with a higher absolute gradient
         char tLow = 3;
