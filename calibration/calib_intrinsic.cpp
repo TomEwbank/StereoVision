@@ -24,7 +24,7 @@ void setup_calibration(int board_width, int board_height,
     DIR *dir;
     struct dirent *ent;
     if ((dir = opendir (imgs_directory)) != NULL) {
-        /* print all the files and directories within directory */
+
         int k = 0;
         while ((ent = readdir (dir)) != NULL) {
 

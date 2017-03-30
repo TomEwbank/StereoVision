@@ -103,7 +103,10 @@ int main (int argc, char** argv) {
 
   // run demo
   if (argc==2 && !strcmp(argv[1],"demo")) {
-    process("img/rect_left.pgm",   "img/rect_right.pgm");
+    process("img/left_image_1_500_rectified.pgm",   "img/right_image_1_500_rectified.pgm");
+    process("img/left_1_500_daylight_rectified.pgm",   "img/right_1_500_daylight_rectified.pgm");
+    process("img/left_40_100_daylight_move_rectified.pgm",   "img/right_40_100_daylight_move_rectified.pgm");
+    process("img/left_60_50_daylight_move_rectified.pgm",   "img/right_60_50_daylight_move_rectified.pgm");
 //    process("img/cones_left.pgm",   "img/cones_right.pgm");
 //    process("img/aloe_left.pgm",    "img/aloe_right.pgm");
 //    process("img/raindeer_left.pgm","img/raindeer_right.pgm");

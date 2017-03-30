@@ -22,6 +22,7 @@
 #include <plane/Plane.h>
 #include <math.h>
 #include <algorithm>
+#include <exception>
 
 using namespace std;
 using namespace cv;
@@ -258,10 +259,10 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
     int matchingX = leftPoint.x;
     for(int i = leftPoint.x; i>=16 && i>(leftPoint.x-maxDisparity); --i) {
         int cost = 0;
-        for (int m=-2; m<=2; ++m) {
+        for (int m=-16; m<=16; ++m) {
             const unsigned int* cl = censusLeft.ptr<unsigned int>(leftPoint.y+m);
             const unsigned int* cr = censusRight.ptr<unsigned int>(leftPoint.y+m);
-            for (int n = -2; n <= 2; ++n) {
+            for (int n = -16; n <= 16; ++n) {
                 cost += (int) h.calculate(cl[leftPoint.x+n], cr[i+n]);
             }
         }
@@ -312,25 +313,80 @@ void supportResampling(Fade_2D &mesh,
     }
 }
 
+cv::Vec3b ConvertColor( cv::Vec3b src, int code)
+{
+    cv::Mat srcMat(1, 1, CV_8UC3 );
+    *srcMat.ptr< cv::Vec3b >( 0 ) = src;
+
+    cv::Mat resMat;
+    cv::cvtColor( srcMat, resMat, code);
+
+    return *resMat.ptr< cv::Vec3b >( 0 );
+}
+
+cv::Vec3b HLS2BGR(float h, float l, float s) {
+    if (h < 0 || h >= 360 || l < 0 || l > 1 || s < 0 || s > 1)
+        throw invalid_argument("invalid HLS parameters");
+
+    float c = (1 - abs(2*l-1))*s;
+    float x = c * (1 - abs(((int)h/60)%2 - 1));
+    float m = l - c/2;
+
+    float r,g,b;
+
+    if (h < 60) {
+        r = c;
+        g = x;
+        b = 0;
+    } else if (h < 120) {
+        r = x;
+        g = c;
+        b = 0;
+    } else if (h < 180) {
+        r = 0;
+        g = c;
+        b = x;
+    } else if (h < 240) {
+        r = 0;
+        g = x;
+        b = c;
+    } else if (h < 300) {
+        r = x;
+        g = 0;
+        b = c;
+    } else {
+        r = c;
+        g = 0;
+        b = x;
+    }
+
+    r = (r+m)*255;
+    g = (g+m)*255;
+    b = (b+m)*255;
+
+    Vec3b color((uchar)b,(uchar)g,(uchar)r);
+    return color;
+}
+
 
 int main(int argc, char** argv) {
     try {
 
         // Stereo matching parameters
-        double uniqueness = 0.7;
-        int maxDisp = 30;
+        double uniqueness = 0.3;
+        int maxDisp = 35;
         int leftRightStep = 2;
-        uchar gradThreshold = 128; // [0,255], disparity will be computed only for points with a higher absolute gradient
+        uchar gradThreshold = 70; // [0,255], disparity will be computed only for points with a higher absolute gradient
         char tLow = 3;
-        char tHigh = 20;
-        int nIters = 4;
-        double resizeFactor = 1;
+        char tHigh = 8;
+        int nIters = 3;
+        double resizeFactor = 0.75;
 
         // Feature detection parameters
-        double adaptivity = 1.0;
-        int minThreshold = 10;
-        int lineNb = 40;
-        int lineSize = 2;
+        double adaptivity = 0.5;
+        int minThreshold = 3;
+        int lineNb = 10;
+        int lineSize = 4;
 
         // Parse arguments
         if(argc != 3 && argc != 4) {
@@ -341,10 +397,26 @@ int main(int argc, char** argv) {
         char* rightFile = argv[2];
         char* calibFile = argc == 4 ? argv[3] : NULL;
 
+//        Mat imgtest = imread(leftFile, CV_LOAD_IMAGE_ANYCOLOR);
+//        // Show what you got
+//        namedWindow("HLS");
+//        imshow("HLS", imgtest);
+//        waitKey(0);
+//        cvtColor(imgtest, imgtest, CV_BGR2HLS);
+//        // Show what you got
+//        namedWindow("HLS");
+//        imshow("HLS", imgtest);
+//        waitKey(0);
+
+
         // Read input images
         cv::Mat_<unsigned char> leftImgInit, rightImgInit;
         leftImgInit = imread(leftFile, CV_LOAD_IMAGE_GRAYSCALE);
         rightImgInit = imread(rightFile, CV_LOAD_IMAGE_GRAYSCALE);
+        equalizeHist(leftImgInit, leftImgInit);
+        equalizeHist(rightImgInit, rightImgInit);
+        GaussianBlur(leftImgInit, leftImgInit, Size(5, 5), 0, 0 );
+        GaussianBlur(rightImgInit, rightImgInit, Size(5, 5), 0, 0 );
         if(leftImgInit.data == NULL || rightImgInit.data == NULL)
             throw sparsestereo::Exception("Unable to open input images!");
 
@@ -406,7 +478,7 @@ int main(int argc, char** argv) {
         rightImgAltered = rightImg.clone();
         int stepSize = leftImgAltered.rows/lineNb;
         for(int k = stepSize/2; k<leftImgAltered.rows; k = k+stepSize) {
-            for(int j = k; j<k+lineSize; ++j) {
+            for(int j = k; j<k+lineSize && j<leftImgAltered.rows; ++j) {
                 leftImgAltered.row(j).setTo(0);
                 rightImgAltered.row(j).setTo(0);
             }
@@ -478,13 +550,20 @@ int main(int argc, char** argv) {
         // Highlight matches as colored boxes
         Mat_<Vec3b> screen(leftImg.rows, leftImg.cols);
         cvtColor(leftImg, screen, CV_GRAY2BGR);
+//        cvtColor(screen, screen, CV_BGR2HLS);
+//        namedWindow("BGR2HLS");
+//        imshow("BGR2HLS", screen);
+//        waitKey();
 
         for(int i=0; i<(int)correspondences.size(); i++) {
             double scaledDisp = (double)correspondences[i].disparity() / maxDisp;
-            Vec3b color;
-            if(scaledDisp > 0.5)
-                color = Vec3b(0, (1 - scaledDisp)*512, 255);
-            else color = Vec3b(0, 255, scaledDisp*512);
+            Vec3b color = HLS2BGR(scaledDisp*359, 0.5, 1);
+            cout << "HLS returned = " << (int) color.val[0] << "," << (int) color.val[1] << "," << (int) color.val[2] << endl;
+//            color = ConvertColor(color, CV_HLS2BGR);
+//            cout << "RGB = " << (int) color.val[0] << "," << (int) color.val[1] << "," << (int) color.val[2] << endl;
+//            if(scaledDisp > 0.5)
+//                color = Vec3b(0, (1 - scaledDisp)*512, 255);
+//            else color = Vec3b(0, 255, scaledDisp*512);
 
             rectangle(screen, correspondences[i].imgLeft->pt - Point2f(2,2),
                       correspondences[i].imgLeft->pt + Point2f(2, 2),
