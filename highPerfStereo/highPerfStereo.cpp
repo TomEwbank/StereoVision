@@ -234,6 +234,7 @@ PotentialSupports disparityRefinement(const vector<Point>& highGradPts,
 
 ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
                                   const Mat_<unsigned int>& censusRight,
+                                  int censusSize,
                                   InvalidMatch leftPoint, int maxDisparity) {
 
 //    const unsigned int *rightEpipolar = censusRight.ptr<unsigned int>(leftPoint.y);
@@ -257,12 +258,18 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
     HammingDistance h;
     int minCost =  2147483647;//32*5*5;
     int matchingX = leftPoint.x;
-    for(int i = leftPoint.x; i>=16 && i>(leftPoint.x-maxDisparity); --i) {
+    int halfWindowSize = 16;
+    int censusMargin = censusSize/2;
+    for(int i = leftPoint.x; i>=halfWindowSize+censusMargin && i>(leftPoint.x-maxDisparity); --i) {
         int cost = 0;
-        for (int m=-16; m<=16; ++m) {
+        for (int m=-halfWindowSize; m<=halfWindowSize && leftPoint.y+m < censusLeft.rows; ++m) {
+
+            if (leftPoint.y+m < 0)
+                continue;
+
             const unsigned int* cl = censusLeft.ptr<unsigned int>(leftPoint.y+m);
             const unsigned int* cr = censusRight.ptr<unsigned int>(leftPoint.y+m);
-            for (int n = -16; n <= 16; ++n) {
+            for (int n = -halfWindowSize; n <= halfWindowSize && i+n < censusLeft.cols; ++n) {
                 cost += (int) h.calculate(cl[leftPoint.x+n], cr[i+n]);
             }
         }
@@ -282,6 +289,7 @@ void supportResampling(Fade_2D &mesh,
                        PotentialSupports &ps,
                        const Mat_<unsigned int> &censusLeft,
                        const Mat_<unsigned int> &censusRight,
+                       int censusSize,
                        Mat_<float> &disparities,
                        char tLow, char tHigh, int maxDisp) {
 
@@ -293,7 +301,7 @@ void supportResampling(Fade_2D &mesh,
             // sparse epipolar stereo matching for invalid pixels and add them to support points
             InvalidMatch invalid = ps.getInvalidMatch(i,j);
             if (invalid.cost > tHigh) {
-                ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, invalid, maxDisp);
+                ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, censusSize, invalid, maxDisp);
                 if (newSupp.cost<tLow) {
                     disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
                     Point2 p(newSupp.x, newSupp.y);
@@ -376,10 +384,10 @@ int main(int argc, char** argv) {
         double uniqueness = 0.3;
         int maxDisp = 35;
         int leftRightStep = 2;
-        uchar gradThreshold = 70; // [0,255], disparity will be computed only for points with a higher absolute gradient
+        uchar gradThreshold = 50; // [0,255], disparity will be computed only for points with a higher absolute gradient
         char tLow = 3;
         char tHigh = 8;
-        int nIters = 3;
+        int nIters = 8;
         double resizeFactor = 0.75;
 
         // Feature detection parameters
@@ -747,7 +755,7 @@ int main(int argc, char** argv) {
             if (iter != nIters) {
 
                 // Support resampling
-                supportResampling(dt, ps, censusLeft, censusRight, disparities, tLow, tHigh, maxDisp);
+                supportResampling(dt, ps, censusLeft, censusRight, 5, disparities, tLow, tHigh, maxDisp);
                 occGridSize = max((unsigned int) 1, occGridSize / 2);
             }
         }
