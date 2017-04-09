@@ -58,7 +58,8 @@ int main(int argc, char const *argv[])
     fs1 << "P2" << P2;
     fs1 << "Q" << Q;
     fs1 << "ROI_left" << validPixROI1;
-    fs1 << "ROI_left" << validPixROI1;
+    fs1 << "ROI_right" << validPixROI2;
+    fs1 << "common_ROI" << (validPixROI1 & validPixROI2);
 //    fs1 << "ROI_left_x" << validPixROI1->x;
 //    fs1 << "ROI_left_y" << validPixROI1->y;
 //    fs1 << "ROI_left_h" << validPixROI1->height;
