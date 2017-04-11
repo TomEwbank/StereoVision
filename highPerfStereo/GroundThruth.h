@@ -6,10 +6,12 @@
 #define PROJECT_GROUNDTHRUTH_H
 
 #include <string>
+#include <opencv2/opencv.hpp>
 
 class GroundThruth {
 
 public:
+
     std::string pointName;
     int x;
     int y;
@@ -17,6 +19,10 @@ public:
     double distance;
 
     friend std::istream& operator>>(std::istream& str, GroundThruth& data);
+
+    cv::Point2d getCoordInROI(cv::Rect roi) {
+        return cv::Point2d(x-roi.x, y-roi.y);
+    }
 
 };
 
