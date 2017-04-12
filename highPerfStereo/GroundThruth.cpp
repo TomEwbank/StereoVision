@@ -21,7 +21,7 @@ std::istream& operator>>(std::istream& str, GroundThruth& data)
         std::stringstream iss(line);
         if ( std::getline(iss, sx, ',')        &&
              std::getline(iss, sy, ',')         &&
-             //std::getline(iss, sdisp, ',')      &&
+             std::getline(iss, sdisp, ',')      &&
              std::getline(iss, sname, ',') &&
              std::getline(iss, sdist))
         {
@@ -29,8 +29,8 @@ std::istream& operator>>(std::istream& str, GroundThruth& data)
             data.pointName = std::regex_replace(sname, std::regex("^ +| +$|( ) +"), "$1");
             data.x = std::stoi(sx);
             data.y = std::stoi(sy);
-            //data.disparity = std::stof(sdisp);
-            data.distance = std::stod(sdist);
+            data.disparity = std::stof(sdisp);
+            data.distance = std::stod(sdist)*10;
         }
         else
         {

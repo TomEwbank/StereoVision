@@ -86,14 +86,17 @@ int main(int argc, char const *argv[])
     imwrite("left_1_500_01_rectified.ppm", imgU1);
     imwrite("right_1_500_01_rectified.ppm", imgU2);
 
-    Vec3d p(484,269,16);
+    Vec3d p(346,180,48);
     std::vector<Vec3d> vin(1);
-    vin.push_back(p);
+    vin[0] = p;
     std::vector<Vec3d> vout(1);
     perspectiveTransform(vin,vout,Q);
 
     for (int i = 0; i < vout.size(); ++i) {
-        cout << vout.at(i).val[0] << ", " << vout.at(i).val[1] << ", " << vout.at(i).val[2] << endl;
+        cout << vin.at(i).val[0] << ", " << vin.at(i).val[1] << ", " << vin.at(i).val[2] << endl;
+        cout << vout[i].val[0] << ", " << vout[i].val[1] << ", " << vout[i].val[2] << endl;
+        double dist = sqrt(pow(vout[i].val[0],2) + pow(vout[i].val[1],2) + pow(vout[i].val[2],2));
+        cout << dist << endl;
     }
 
     return 0;

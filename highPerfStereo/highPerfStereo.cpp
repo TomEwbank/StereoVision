@@ -38,18 +38,19 @@ int main(int argc, char** argv) {
     try {
 
         // Stereo matching parameters
-        double uniqueness = 0.6;
-        int maxDisp = 70;
+        double uniqueness = 0.9;
+        int maxDisp = 75;
         int leftRightStep = 2;
         uchar gradThreshold = 25; // [0,255], disparity will be computed only for points with a higher absolute gradient
         char tLow = 3;
         char tHigh = 15;
         int nIters = 3;
         double resizeFactor = 1;
-        int blurSize = 3;
+        bool applyBlur = true;
+        int blurSize = 5;
 
         // Feature detection parameters
-        double adaptivity = 0.5;
+        double adaptivity = 0.25;
         int minThreshold = 3;
         bool traceLines = false;
         int lineNb = 10;
@@ -161,8 +162,10 @@ int main(int argc, char** argv) {
             waitKey(0);
         }
 
-        GaussianBlur(leftImg, leftImg, Size(blurSize, blurSize), 0, 0 );
-        GaussianBlur(rightImg, rightImg, Size(blurSize, blurSize), 0, 0 );
+        if (applyBlur) {
+            GaussianBlur(leftImg, leftImg, Size(blurSize, blurSize), 0, 0);
+            GaussianBlur(rightImg, rightImg, Size(blurSize, blurSize), 0, 0);
+        }
 
         // Horizontal lines tracing in images for better feature detection
         lastTime = microsec_clock::local_time();
@@ -465,6 +468,41 @@ int main(int argc, char** argv) {
         }
 
 
+        // True distance error estimation
+        Mat Q;
+        fs["Q"] >> Q;
+        std::vector<Vec3d> vin(groundTruthVec.size());
+        std::vector<Vec3d> vout(groundTruthVec.size());
+        cout << "Truth points nb: " << groundTruthVec.size() << endl;
+        double meanDispError = 0;
+        for (int n = 0; n < groundTruthVec.size(); ++n) {
+            GroundThruth t = groundTruthVec[n];
+            Point2d coordInROI = t.getCoordInROI(commonROI);
+            float disp = disparities.at<float>(coordInROI);
+            double dispError = abs(disp-t.disparity);
+            //cout << dispError << endl;
+            meanDispError += dispError;
+            Vec3d p(t.x, t.y, disparities.at<float>(coordInROI));
+            vin[n] = p;
+        }
+        meanDispError = meanDispError/groundTruthVec.size();
+        cout << "Mean disparity error: " << meanDispError << endl;
+
+        perspectiveTransform(vin, vout, Q);
+
+        double meanError = 0;
+        for (int i = 0; i < groundTruthVec.size(); ++i) {
+            Vec3d point3D = vout[i];
+            double x = point3D.val[0];
+            double y = point3D.val[1];
+            double z = point3D.val[2];
+            double error = abs(groundTruthVec[i].distance - sqrt(pow(x,2)+pow(y,2)+pow(z,2)));
+            //cout << x << ", " << y << ", " << z << endl;
+            //cout << error << endl;
+            meanError += error;
+        }
+        meanError = meanError/groundTruthVec.size();
+        cout << "Mean dist error: " << meanError << endl;
 
         // Clean up
         delete leftFeatureDetector;
