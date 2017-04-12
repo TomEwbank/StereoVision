@@ -39,10 +39,11 @@ int main(int argc, char** argv) {
 
         // Stereo matching parameters
         double uniqueness = 0.9;
-        int maxDisp = 75;
-        int leftRightStep = 2;
+        int maxDisp = 70;
+        int leftRightStep = 1;
+        int costAggrWindowSize = 11;
         uchar gradThreshold = 25; // [0,255], disparity will be computed only for points with a higher absolute gradient
-        char tLow = 3;
+        char tLow = 5;
         char tHigh = 15;
         int nIters = 3;
         double resizeFactor = 1;
@@ -77,7 +78,7 @@ int main(int argc, char** argv) {
         String groundTruthFile = "test_imgs/dist_1_500_01";
 
         ifstream readFile(groundTruthFile);
-        vector<GroundThruth> groundTruthVec; // TODO uncomment disp in groundtrhuth class
+        vector<GroundThruth> groundTruthVec;
         GroundThruth data;
         while(readFile >> data) {
             cout << data.x << ", " << data.y << ", " << data.disparity << ", " << data.distance << ", " << data.pointName << endl;
@@ -462,7 +463,7 @@ int main(int argc, char** argv) {
             if (iter != nIters) {
 
                 // Support resampling
-                supportResampling(dt, ps, censusLeft, censusRight, 5, disparities, tLow, tHigh, maxDisp);
+                supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, disparities, tLow, tHigh, maxDisp);
                 occGridSize = max((unsigned int) 1, occGridSize / 2);
             }
         }

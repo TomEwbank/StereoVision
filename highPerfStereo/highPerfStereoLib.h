@@ -173,14 +173,14 @@ PotentialSupports disparityRefinement(const vector<Point>& highGradPts,
 
 ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
                                   const Mat_<unsigned int>& censusRight,
-                                  int censusSize,
+                                  int censusSize, int costAggrWindowSize,
                                   InvalidMatch leftPoint, int maxDisparity);
 
 void supportResampling(Fade_2D &mesh,
                        PotentialSupports &ps,
                        const Mat_<unsigned int> &censusLeft,
                        const Mat_<unsigned int> &censusRight,
-                       int censusSize,
+                       int censusSize, int costAggrWindowSize,
                        Mat_<float> &disparities,
                        char tLow, char tHigh, int maxDisp);
 

@@ -87,7 +87,7 @@ PotentialSupports disparityRefinement(const vector<Point>& highGradPts,
 
 ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
                                   const Mat_<unsigned int>& censusRight,
-                                  int censusSize,
+                                  int censusSize, int costAggrWindowSize,
                                   InvalidMatch leftPoint, int maxDisparity) {
 
 //    const unsigned int *rightEpipolar = censusRight.ptr<unsigned int>(leftPoint.y);
@@ -111,7 +111,7 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
     HammingDistance h;
     int minCost =  2147483647;//32*5*5;
     int matchingX = leftPoint.x;
-    int halfWindowSize = 16;
+    int halfWindowSize = costAggrWindowSize/2;
     int censusMargin = censusSize/2;
     for(int i = leftPoint.x; i>=halfWindowSize+censusMargin && i>(leftPoint.x-maxDisparity); --i) {
         int cost = 0;
@@ -142,7 +142,7 @@ void supportResampling(Fade_2D &mesh,
                        PotentialSupports &ps,
                        const Mat_<unsigned int> &censusLeft,
                        const Mat_<unsigned int> &censusRight,
-                       int censusSize,
+                       int censusSize, int costAggrWindowSize,
                        Mat_<float> &disparities,
                        char tLow, char tHigh, int maxDisp) {
 
@@ -154,7 +154,7 @@ void supportResampling(Fade_2D &mesh,
             // sparse epipolar stereo matching for invalid pixels and add them to support points
             InvalidMatch invalid = ps.getInvalidMatch(i,j);
             if (invalid.cost > tHigh) {
-                ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, censusSize, invalid, maxDisp);
+                ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, censusSize, costAggrWindowSize, invalid, maxDisp);
                 if (newSupp.cost<tLow) {
                     disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
                     Point2 p(newSupp.x, newSupp.y);
