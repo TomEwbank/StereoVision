@@ -14,8 +14,9 @@ using namespace cv;
 int main(int argc, char const *argv[])
 {
     String out_file = "stereoMatlabCalib.yml";
-    Mat img1 = imread("left_1_500_01.ppm", CV_LOAD_IMAGE_COLOR);
-    Mat img2 = imread("right_1_500_01.ppm", CV_LOAD_IMAGE_COLOR);
+    String pairName = "1_500_02";
+    Mat img1 = imread("left_"+pairName+".ppm", CV_LOAD_IMAGE_COLOR);
+    Mat img2 = imread("right_"+pairName+".ppm", CV_LOAD_IMAGE_COLOR);
 
     Mat K1, K2;
     Mat D1, D2;
@@ -83,21 +84,21 @@ int main(int argc, char const *argv[])
     cv::remap(img1, imgU1, lmapx, lmapy, cv::INTER_LINEAR);
     cv::remap(img2, imgU2, rmapx, rmapy, cv::INTER_LINEAR);
 
-    imwrite("left_1_500_01_rectified.ppm", imgU1);
-    imwrite("right_1_500_01_rectified.ppm", imgU2);
+    imwrite("left_"+pairName+"_rectified.ppm", imgU1);
+    imwrite("right_"+pairName+"_rectified.ppm", imgU2);
 
-    Vec3d p(346,180,48);
-    std::vector<Vec3d> vin(1);
-    vin[0] = p;
-    std::vector<Vec3d> vout(1);
-    perspectiveTransform(vin,vout,Q);
-
-    for (int i = 0; i < vout.size(); ++i) {
-        cout << vin.at(i).val[0] << ", " << vin.at(i).val[1] << ", " << vin.at(i).val[2] << endl;
-        cout << vout[i].val[0] << ", " << vout[i].val[1] << ", " << vout[i].val[2] << endl;
-        double dist = sqrt(pow(vout[i].val[0],2) + pow(vout[i].val[1],2) + pow(vout[i].val[2],2));
-        cout << dist << endl;
-    }
+//    Vec3d p(346,180,48);
+//    std::vector<Vec3d> vin(1);
+//    vin[0] = p;
+//    std::vector<Vec3d> vout(1);
+//    perspectiveTransform(vin,vout,Q);
+//
+//    for (int i = 0; i < vout.size(); ++i) {
+//        cout << vin.at(i).val[0] << ", " << vin.at(i).val[1] << ", " << vin.at(i).val[2] << endl;
+//        cout << vout[i].val[0] << ", " << vout[i].val[1] << ", " << vout[i].val[2] << endl;
+//        double dist = sqrt(pow(vout[i].val[0],2) + pow(vout[i].val[1],2) + pow(vout[i].val[2],2));
+//        cout << dist << endl;
+//    }
 
     return 0;
 }

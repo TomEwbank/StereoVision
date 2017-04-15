@@ -23,6 +23,9 @@
 #include <math.h>
 #include <algorithm>
 #include <exception>
+//#include <pcl/impl/point_types.hpp>
+//#include <pcl/common/projection_matrix.h>
+//#include <pcl/visualization/cloud_viewer.h>
 #include "highPerfStereoLib.h"
 #include "GroundThruth.h"
 
@@ -45,9 +48,10 @@ int main(int argc, char** argv) {
         uchar gradThreshold = 25; // [0,255], disparity will be computed only for points with a higher absolute gradient
         char tLow = 3;
         char tHigh = 15;
-        int nIters = 1;
+        int nIters = 3;
         double resizeFactor = 1;
         bool applyBlur = true;
+        bool applyHistEqualization = false;
         int blurSize = 5;
 
         // Feature detection parameters
@@ -59,7 +63,7 @@ int main(int argc, char** argv) {
 
         // Misc. parameters
         bool recordFullDisp = true;
-        bool showImages = false;
+        bool showImages = true;
 
 
 //        // Parse arguments
@@ -71,11 +75,12 @@ int main(int argc, char** argv) {
 //        char* rightFile = argv[2];
 //        char* calibFile = argc == 4 ? argv[3] : NULL;
 
-
-        String leftFile = "test_imgs/left_1_500_01_rectified.ppm";
-        String rightFile = "test_imgs/right_1_500_01_rectified.ppm";
-        String calibFile = "test_imgs/stereoMatlabCalib.yml";
-        String groundTruthFile = "test_imgs/dist_1_500_01";
+        String folderName = "test_imgs/";
+        String pairName = "1_500_02";
+        String leftFile = folderName + "left_" + pairName + "_rectified.ppm";
+        String rightFile = folderName + "right_" + pairName + "_rectified.ppm";
+        String calibFile = folderName+ "stereoMatlabCalib.yml";
+        String groundTruthFile = folderName + "dist_" + pairName;
 
         std::vector<double> timeProfile;
 
@@ -93,9 +98,10 @@ int main(int argc, char** argv) {
 //        }
 
         // Read input images
-        cv::Mat_<unsigned char> leftImgInit, rightImgInit;
+        cv::Mat_<unsigned char> leftImgInit, rightImgInit, colorLeftImg;
         leftImgInit = imread(leftFile, CV_LOAD_IMAGE_GRAYSCALE);
         rightImgInit = imread(rightFile, CV_LOAD_IMAGE_GRAYSCALE);
+        colorLeftImg = imread(leftFile, CV_LOAD_IMAGE_COLOR);
 
         if(leftImgInit.data == NULL || rightImgInit.data == NULL)
             throw sparsestereo::Exception("Unable to open input images!");
@@ -170,6 +176,17 @@ int main(int argc, char** argv) {
             waitKey(0);
         }
 
+
+        if (applyHistEqualization) {
+            lastTime = microsec_clock::local_time();
+
+            equalizeHist(leftImg, leftImg);
+            equalizeHist(rightImg, rightImg);
+
+            elapsed = (microsec_clock::local_time() - lastTime);
+            cout << "Time to equalize hist: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
+            timeProfile.push_back(elapsed.total_microseconds()/1.0e6);
+        }
 
         if (applyBlur) {
             lastTime = microsec_clock::local_time();
@@ -530,10 +547,10 @@ int main(int argc, char** argv) {
         int nbSkipped = 0;
         for (int n = 0; n < groundTruthVec.size(); ++n) {
             GroundThruth t = groundTruthVec[n];
-            Point2d coordInROI = t.getCoordInROI(commonROI);
+            Point2i coordInROI = t.getCoordInROI(commonROI);
             float disp = disparities.at<float>(coordInROI);
             double dispError = abs(disp-t.disparity);
-            if (dispError < 8) {
+            if (dispError < 15) {
                 meanDispError += dispError;
             } else {
                 ++nbSkipped;
@@ -549,16 +566,33 @@ int main(int argc, char** argv) {
 
         double meanError = 0;
         nbSkipped = 0;
+        ofstream smallCloudFile("smallCloud.txt");
+//        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_xyzrgb (new pcl::PointCloud<pcl::PointXYZRGB>);
         for (int i = 0; i < groundTruthVec.size(); ++i) {
             Vec3d point3D = vout[i];
             double x = point3D.val[0];
             double y = point3D.val[1];
             double z = point3D.val[2];
+            double b = colorLeftImg.at<Vec3b>(Point(vin[i].val[0], vin[i].val[1])).val[0];
+            double g = colorLeftImg.at<Vec3b>(Point(vin[i].val[0], vin[i].val[1])).val[1];
+            double r = colorLeftImg.at<Vec3b>(Point(vin[i].val[0], vin[i].val[1])).val[2];
+
+
+//            pcl::PointXYZRGB pclPoint;
+//            pclPoint.x = x;
+//            pclPoint.y = y;
+//            pclPoint.z = z;
+//            pclPoint.b = colorLeftImg.at<Vec3b>(Point(vin[i].val[0], vin[i].val[1])).val[0];
+//            pclPoint.g = colorLeftImg.at<Vec3b>(Point(vin[i].val[0], vin[i].val[1])).val[1];
+//            pclPoint.r = colorLeftImg.at<Vec3b>(Point(vin[i].val[0], vin[i].val[1])).val[2];
+//            cloud_xyzrgb->push_back(pclPoint);
+
             double error = abs(groundTruthVec[i].distance - sqrt(pow(x,2)+pow(y,2)+pow(z,2)));
             //cout << x << ", " << y << ", " << z << endl;
             //cout << error << endl;
             if (error < 2000) {
                 meanError += error;
+                smallCloudFile << x << " " << y << " " << z << " " << r << " " << g  << " " << b << endl;
             } else {
                 ++nbSkipped;
             }
@@ -566,6 +600,47 @@ int main(int argc, char** argv) {
         cout << nbSkipped  << endl;
         meanError = meanError/(groundTruthVec.size()-nbSkipped);
         cout << "Mean dist error: " << meanError << endl;
+        smallCloudFile.close();
+
+//        pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
+//        viewer.showCloud(cloud_xyzrgb);
+
+//        waitKey(0);
+
+        std::vector<Vec3d> vin2(highGradPoints.size());
+        std::vector<Vec3d> vout2(highGradPoints.size());
+        std::vector<Point>::iterator ptsIt;
+        std::vector<Vec3d>::iterator vin2It;
+        for (ptsIt = highGradPoints.begin(), vin2It = vin2.begin();
+             ptsIt < highGradPoints.end();
+             ptsIt++, vin2It++) {
+
+            Point coordInROI = *ptsIt;
+            Vec3d p(coordInROI.x+commonROI.x, coordInROI.y+commonROI.y, finalDisp.at<float>(coordInROI));
+            *vin2It = p;
+        }
+        perspectiveTransform(vin2, vout2, Q);
+        ofstream outputFile("pointCloud_"+pairName+".txt");
+        std::vector<Vec3d>::iterator vout2It;
+        for (ptsIt = highGradPoints.begin(), vout2It = vout2.begin(); vout2It < vout2.end(); vout2It++, ptsIt++) {
+            Vec3d point3D = *vout2It;
+            Point pointInImage = *ptsIt;
+            pointInImage.x += commonROI.x;
+            pointInImage.y += commonROI.y;
+
+            double x = point3D.val[0];
+            double y = point3D.val[1];
+            double z = point3D.val[2];
+
+            Vec3b color = colorLeftImg.at<Vec3b>(pointInImage);
+            double r = color.val[2];
+            double g = color.val[1];
+            double b = color.val[0];
+
+            if (z > 0 && sqrt(pow(x,2)+pow(y,2)+pow(z,2)) < 8000)
+                outputFile << x << " " << y << " " << z << " " << r << " " << g  << " " << b << endl;
+        }
+        outputFile.close();
 
         // Clean up
         delete leftFeatureDetector;
@@ -587,3 +662,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 }
+
+// TODO display point cloud -> DONE WITH MESHLAB
+// TODO add second image in test
+// TODO check influence of auto contrast techniques
+// TODO replace cramer plane param calculation to increase speed
+// TODO fix & check the influence of census transform with variable window
+

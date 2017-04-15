@@ -1,0 +1,2 @@
+add_executable(pointCloudGeneration pointCloudGeneration.cpp)
+target_link_libraries(pointCloudGeneration ${OpenCV_LIBS})

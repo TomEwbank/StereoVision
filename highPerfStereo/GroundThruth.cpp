@@ -39,8 +39,6 @@ std::istream& operator>>(std::istream& str, GroundThruth& data)
             // to indicate failure.
             str.setstate(std::ios::failbit);
         }
-    } else {
-        int a = 2;
     }
     return str;
 }
