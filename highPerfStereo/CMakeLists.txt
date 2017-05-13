@@ -1,2 +1,2 @@
-add_executable(highPerfStereo highPerfStereo.cpp highPerfStereoLib.cpp GroundThruth.cpp)
+add_executable(highPerfStereo highPerfStereo.cpp highPerfStereoLib.cpp GroundThruth.cpp PerformanceEvaluator.cpp PerformanceEvaluator.h)
 target_link_libraries(highPerfStereo plane linearSystem sparsestereo fade2d ${OpenCV_LIBS})

@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
     try {
 
         // Stereo matching parameters
-        double uniqueness = 0.9;
+        double uniqueness = 0.5;
         int maxDisp = 70;
         int leftRightStep = 1;
         int costAggrWindowSize = 11;
@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
         int nIters = 3;
         double resizeFactor = 1;
         bool applyBlur = true;
-        bool applyHistEqualization = false;
+        bool applyHistEqualization = true;
         int blurSize = 5;
 
         // Feature detection parameters
@@ -664,7 +664,7 @@ int main(int argc, char** argv) {
 }
 
 // TODO display point cloud -> DONE WITH MESHLAB
-// TODO add second image in test
+// TODO add second image in test -> DONE
 // TODO check influence of auto contrast techniques
 // TODO replace cramer plane param calculation to increase speed
 // TODO fix & check the influence of census transform with variable window

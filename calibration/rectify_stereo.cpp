@@ -13,10 +13,14 @@ using namespace cv;
 
 int main(int argc, char const *argv[])
 {
-    String out_file = "stereoMatlabCalib.yml";
-    String pairName = "1_500_02";
-    Mat img1 = imread("left_"+pairName+".ppm", CV_LOAD_IMAGE_COLOR);
-    Mat img2 = imread("right_"+pairName+".ppm", CV_LOAD_IMAGE_COLOR);
+//    String out_file = "stereoMatlabCalib.yml";
+    String out_file = "kinectCalib.yml";
+//    String pairName = "1_500_02";
+    String pairName = "image_firstTest";
+    String imNumber = "3";
+    Mat img1 = imread("left_"+pairName+"_"+imNumber+".ppm", CV_LOAD_IMAGE_COLOR);
+//    Mat img2 = imread("right_"+pairName+".ppm", CV_LOAD_IMAGE_COLOR);
+    Mat img2 = imread("ir_"+pairName+"_"+imNumber+".tif", CV_LOAD_IMAGE_COLOR);
 
     Mat K1, K2;
     Mat D1, D2;
