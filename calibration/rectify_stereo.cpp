@@ -13,14 +13,22 @@ using namespace cv;
 
 int main(int argc, char const *argv[])
 {
+    String folder = "kinect_test_imgs/";
 //    String out_file = "stereoMatlabCalib.yml";
-    String out_file = "kinectCalib.yml";
+    String out_file = folder+"stereoCalib_1305.yml";
 //    String pairName = "1_500_02";
-    String pairName = "image_firstTest";
-    String imNumber = "3";
-    Mat img1 = imread("left_"+pairName+"_"+imNumber+".ppm", CV_LOAD_IMAGE_COLOR);
-//    Mat img2 = imread("right_"+pairName+".ppm", CV_LOAD_IMAGE_COLOR);
-    Mat img2 = imread("ir_"+pairName+"_"+imNumber+".tif", CV_LOAD_IMAGE_COLOR);
+    String pairName = "groundtruth";
+    String imNumber = "6";
+    Mat img1 = imread(folder+"left_"+pairName+"_"+imNumber+".ppm", CV_LOAD_IMAGE_COLOR);
+    Mat img2 = imread(folder+"right_"+pairName+"_"+imNumber+".ppm", CV_LOAD_IMAGE_COLOR);
+//    Mat img2 = imread("ir_"+pairName+"_"+imNumber+".tif", CV_LOAD_IMAGE_COLOR);
+
+//    namedWindow("High gradient color disparities");
+//    imshow("High gradient color disparities", img1);
+//    waitKey();
+//    namedWindow("High gradient color disparities");
+//    imshow("High gradient color disparities", img2);
+//    waitKey();
 
     Mat K1, K2;
     Mat D1, D2;
@@ -88,8 +96,8 @@ int main(int argc, char const *argv[])
     cv::remap(img1, imgU1, lmapx, lmapy, cv::INTER_LINEAR);
     cv::remap(img2, imgU2, rmapx, rmapy, cv::INTER_LINEAR);
 
-    imwrite("left_"+pairName+"_rectified.ppm", imgU1);
-    imwrite("right_"+pairName+"_rectified.ppm", imgU2);
+    imwrite(folder+"left_"+pairName+"_"+imNumber+"_rectified.ppm", imgU1);
+    imwrite(folder+"right_"+pairName+"_"+imNumber+"_rectified.ppm", imgU2);
 
 //    Vec3d p(346,180,48);
 //    std::vector<Vec3d> vin(1);

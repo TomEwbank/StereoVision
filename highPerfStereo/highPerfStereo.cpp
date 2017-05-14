@@ -28,6 +28,7 @@
 //#include <pcl/visualization/cloud_viewer.h>
 #include "highPerfStereoLib.h"
 #include "GroundThruth.h"
+#include "PerformanceEvaluator.h"
 
 using namespace std;
 using namespace cv;
@@ -45,7 +46,7 @@ int main(int argc, char** argv) {
         int maxDisp = 70;
         int leftRightStep = 1;
         int costAggrWindowSize = 11;
-        uchar gradThreshold = 25; // [0,255], disparity will be computed only for points with a higher absolute gradient
+        uchar gradThreshold = 100;//25; // [0,255], disparity will be computed only for points with a higher absolute gradient
         char tLow = 3;
         char tHigh = 15;
         int nIters = 3;
@@ -63,7 +64,7 @@ int main(int argc, char** argv) {
 
         // Misc. parameters
         bool recordFullDisp = true;
-        bool showImages = true;
+        bool showImages = false;
 
 
 //        // Parse arguments
@@ -75,27 +76,18 @@ int main(int argc, char** argv) {
 //        char* rightFile = argv[2];
 //        char* calibFile = argc == 4 ? argv[3] : NULL;
 
-        String folderName = "test_imgs/";
-        String pairName = "1_500_02";
-        String leftFile = folderName + "left_" + pairName + "_rectified.ppm";
-        String rightFile = folderName + "right_" + pairName + "_rectified.ppm";
-        String calibFile = folderName+ "stereoMatlabCalib.yml";
+        String folderName = "kinect_test_imgs/"; //"test_imgs/";
+        String pairName = "groundtruth";//"1_500_02";
+        String imNumber = "1";
+        String leftFile = folderName + "left_" + pairName + "_" + imNumber + "_rectified.ppm";
+        String rightFile = folderName + "right_" + pairName + "_" + imNumber + "_rectified.ppm";
+        String calibFile = folderName+ "stereoCalib_1305.yml";//"stereoMatlabCalib.yml";
+        String kinectCalibFile = folderName + "kinectCalib_1305.yml";
+        String rawDepthFile = folderName + "rawDepth_" + pairName + "_" + imNumber + ".yml";
         String groundTruthFile = folderName + "dist_" + pairName;
 
         std::vector<double> timeProfile;
 
-        ifstream readFile(groundTruthFile);
-        vector<GroundThruth> groundTruthVec;
-        GroundThruth data;
-        while(readFile >> data) {
-            //cout << data.x << ", " << data.y << ", " << data.disparity << ", " << data.distance << ", " << data.pointName << endl;
-            groundTruthVec.push_back(data);
-        }
-
-//        for (int l = 0; l < groundTruthVec.size(); ++l) {
-//            data = groundTruthVec[l];
-//            cout << data.x << ", " << data.y << ", " << data.disparity << ", " << data.distance << ", " << data.pointName << endl;
-//        }
 
         // Read input images
         cv::Mat_<unsigned char> leftImgInit, rightImgInit, colorLeftImg;
@@ -537,9 +529,27 @@ int main(int argc, char** argv) {
         }
         cout << "Total time: " << totalTime << endl << "Fps: " << 1/totalTime << endl;
 
-        // True distance error estimation
+/*------------------------------------------------------------------------------------*/
+
+
         Mat Q;
         fs["Q"] >> Q;
+
+/*        // True distance error estimation
+
+        ifstream readFile(groundTruthFile);
+        vector<GroundThruth> groundTruthVec;
+        GroundThruth data;
+        while(readFile >> data) {
+            //cout << data.x << ", " << data.y << ", " << data.disparity << ", " << data.distance << ", " << data.pointName << endl;
+            groundTruthVec.push_back(data);
+        }
+
+//        for (int l = 0; l < groundTruthVec.size(); ++l) {
+//            data = groundTruthVec[l];
+//            cout << data.x << ", " << data.y << ", " << data.disparity << ", " << data.distance << ", " << data.pointName << endl;
+//        }
+
         std::vector<Vec3d> vin(groundTruthVec.size());
         std::vector<Vec3d> vout(groundTruthVec.size());
         cout << "Truth points nb: " << groundTruthVec.size() << endl;
@@ -607,6 +617,11 @@ int main(int argc, char** argv) {
 
 //        waitKey(0);
 
+*/
+
+/* --------------------------------------------------------------------------------- */
+
+        // Generate pointCloud
         std::vector<Vec3d> vin2(highGradPoints.size());
         std::vector<Vec3d> vout2(highGradPoints.size());
         std::vector<Point>::iterator ptsIt;
@@ -641,6 +656,32 @@ int main(int argc, char** argv) {
                 outputFile << x << " " << y << " " << z << " " << r << " " << g  << " " << b << endl;
         }
         outputFile.close();
+
+/* -----------------------------------------------------------------------------------*/
+
+        // Stereo VS Kinect, error calculation
+
+        FileStorage fsKinect;
+        fsKinect.open(kinectCalibFile, FileStorage::READ);
+        Mat R;
+        fsKinect["R"] >> R;
+        Vec3d T;
+        fsKinect["T"] >> T;
+
+        FileStorage fsRawDepth;
+        fsRawDepth.open(rawDepthFile, FileStorage::READ);
+        Mat rawDepth;
+        fsRawDepth["rawDepth"] >> rawDepth;
+        cout << rawDepth.cols << endl;
+
+        Mat camMatrix;
+        fs["K1"] >> camMatrix;
+
+        PerformanceEvaluator evaluator(rawDepth, finalDisp, highGradPoints, camMatrix, Q, R, T);
+
+
+
+/* ---------------------------------------------------------------------------------------*/
 
         // Clean up
         delete leftFeatureDetector;
