@@ -6,7 +6,9 @@
 #define PROJECT_PERFORMANCEEVALUATOR_H
 
 #include <opencv2/opencv.hpp>
+#include <Eigen/Dense>
 
+using namespace Eigen;
 using namespace cv;
 
 class PerformanceEvaluator {
@@ -15,27 +17,39 @@ class PerformanceEvaluator {
 
     Mat kinectRawDepth; // Raw depth calculated by the kinect
     std::vector<Point3f> kinectPointCloud; // 3D points obtained from the raw depth, in the reference frame of the kinect
-    std::vector<Point2f> kinectPointsInImage; // Pixel coordinates of the points from the kinect inside the image for which the disparity map has been calculated
 
+    int xOffset, yOffset;
     Mat disparities; // Disparity map
     std::vector<Point> consideredDisparities; // Pixels for which there is a disparity values
     std::vector<Point3f> stereoPointCloud; // 3D points obtained from disparity map
+    std::vector<Point2f> stereoPointsInKinect; // Pixel coordinates of the 3D points obtained from the disparity map, reprojected in the kinect camera
 
-    Mat camMatrix; // Camera matrix
+
+    Mat kinectCamMatrix; // Camera matrix
+    Mat kinectDistortion;
     Mat perspTransform; // Perspective transformation matrix
     Mat R; // Rotation matrix from the camera of the stereo system to the camera of the kinect
+    Vec3d rotVec; // Rotation vector from the camera of the stereo system to the camera of the kinect
     Vec3d T; // translation vector from the camera of the stereo system to the camera of the kinect
+//    Matrix<float, 4, 4> stereo2kinect;
+//    Matrix<float, 4, 4> kinect2stereo;
+    Mat_<float> stereo2kinect;
+    Mat_<float> kinect2stereo;
 
 public:
-    PerformanceEvaluator(Mat rawDepth, Mat disparities, std::vector<Point> consideredDisparities,
-                         Mat camMatrix, Mat perspTransform, Mat rotation, Vec3d translation);
+    PerformanceEvaluator(Mat rawDepth, Mat disparities, std::vector<Point> consideredDisparities, Mat camMatrix,
+                             Mat distortion, Mat perspTransform, Mat rotation, Vec3d translation, int xOffset, int yOffset);
 
 private:
     Point3f depthToWorld(int x, int y, int depthValue);
 
-    float rawDepthToMeters(int depthValue);
+    float rawDepthToMilliMeters(int depthValue);
 
     void generate3DpointsFromRawDepth();
+
+    void generate3DpointsFromDisparities();
+
+    void transform3Dpoints(const vector<Point3f> input, vector<Point3f> &output, Mat_<float> M);
 };
 
 

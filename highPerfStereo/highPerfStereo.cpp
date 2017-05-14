@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
         int maxDisp = 70;
         int leftRightStep = 1;
         int costAggrWindowSize = 11;
-        uchar gradThreshold = 100;//25; // [0,255], disparity will be computed only for points with a higher absolute gradient
+        uchar gradThreshold = 50;//25; // [0,255], disparity will be computed only for points with a higher absolute gradient
         char tLow = 3;
         char tHigh = 15;
         int nIters = 3;
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
 
         // Misc. parameters
         bool recordFullDisp = true;
-        bool showImages = false;
+        bool showImages = true;
 
 
 //        // Parse arguments
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
 
         String folderName = "kinect_test_imgs/"; //"test_imgs/";
         String pairName = "groundtruth";//"1_500_02";
-        String imNumber = "1";
+        String imNumber = "6";
         String leftFile = folderName + "left_" + pairName + "_" + imNumber + "_rectified.ppm";
         String rightFile = folderName + "right_" + pairName + "_" + imNumber + "_rectified.ppm";
         String calibFile = folderName+ "stereoCalib_1305.yml";//"stereoMatlabCalib.yml";
@@ -663,6 +663,10 @@ int main(int argc, char** argv) {
 
         FileStorage fsKinect;
         fsKinect.open(kinectCalibFile, FileStorage::READ);
+        Mat kinectCamMatrix;
+        fsKinect["K2"] >> kinectCamMatrix;
+        Mat kinectDistortion;
+        fsKinect["D2"] >> kinectDistortion;
         Mat R;
         fsKinect["R"] >> R;
         Vec3d T;
@@ -672,12 +676,9 @@ int main(int argc, char** argv) {
         fsRawDepth.open(rawDepthFile, FileStorage::READ);
         Mat rawDepth;
         fsRawDepth["rawDepth"] >> rawDepth;
-        cout << rawDepth.cols << endl;
 
-        Mat camMatrix;
-        fs["K1"] >> camMatrix;
-
-        PerformanceEvaluator evaluator(rawDepth, finalDisp, highGradPoints, camMatrix, Q, R, T);
+        PerformanceEvaluator evaluator(rawDepth, finalDisp, highGradPoints, kinectCamMatrix, kinectDistortion, Q, R, T,
+                                       commonROI.x, commonROI.y);
 
 
 
