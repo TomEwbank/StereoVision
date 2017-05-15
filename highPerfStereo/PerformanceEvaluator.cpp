@@ -21,6 +21,26 @@ PerformanceEvaluator::PerformanceEvaluator(Mat rawDepth, Mat disparities, std::v
     this->xOffset = xOffset;
     this->yOffset = yOffset;
 
+    errors = std::vector<std::vector<Point3f>>(2048);
+    meanDistErrors = std::vector<float>(2048);
+    meanXErrors = std::vector<float>(2048);
+    meanYErrors = std::vector<float>(2048);
+    meanZErrors = std::vector<float>(2048);
+    sigmaDistErrors = std::vector<float>(2048);
+    sigmaXErrors = std::vector<float>(2048);
+    sigmaYErrors = std::vector<float>(2048);
+    sigmaZErrors = std::vector<float>(2048);
+
+    nbCorrespondences = 0;
+    meanDistError = 0;
+    meanXError = 0;
+    meanYError = 0;
+    meanZError = 0;
+    sigmaDistError = 0;
+    sigmaXError = 0;
+    sigmaYError = 0;
+    sigmaZError = 0;
+
     // Create transformation matrix from stereo system frame to kinect frame and vice versa
     Mat_<float> stereo2kinect(4,4,0.0);
     R.copyTo(stereo2kinect(cv::Rect(0,0,3,3)));
@@ -161,4 +181,19 @@ void PerformanceEvaluator::transform3Dpoints(const std::vector<Point3f> input, v
         std::cout << newP.x << " " << newP.y << " " << newP.z << std::endl;
         output.push_back(newP);
     }
+}
+
+Point3f PerformanceEvaluator::getKinect3DPoint(int x, int y) {
+    return kinectPointCloud.at(x*kinectRawDepth.rows+y);
+}
+
+void PerformanceEvaluator::calculateErrors() {
+    std::vector<Point3f>::const_iterator cloudIter;
+    std::vector<Point2f>::const_iterator reprojectionIter;
+    for(cloudIter = stereoPointCloud.begin(), reprojectionIter = stereoPointsInKinect.begin();
+            cloudIter < stereoPointCloud.end();
+            cloudIter++, reprojectionIter++) {
+
+    }
+
 }

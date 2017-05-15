@@ -24,7 +24,6 @@ class PerformanceEvaluator {
     std::vector<Point3f> stereoPointCloud; // 3D points obtained from disparity map
     std::vector<Point2f> stereoPointsInKinect; // Pixel coordinates of the 3D points obtained from the disparity map, reprojected in the kinect camera
 
-
     Mat kinectCamMatrix; // Camera matrix
     Mat kinectDistortion;
     Mat perspTransform; // Perspective transformation matrix
@@ -35,6 +34,25 @@ class PerformanceEvaluator {
 //    Matrix<float, 4, 4> kinect2stereo;
     Mat_<float> stereo2kinect;
     Mat_<float> kinect2stereo;
+
+    int nbCorrespondences;
+    std::vector<std::vector<Point3f>> errors;
+    std::vector<float> meanDistErrors;
+    std::vector<float> meanXErrors;
+    std::vector<float> meanYErrors;
+    std::vector<float> meanZErrors;
+    std::vector<float> sigmaDistErrors;
+    std::vector<float> sigmaXErrors;
+    std::vector<float> sigmaYErrors;
+    std::vector<float> sigmaZErrors;
+    float meanDistError;
+    float meanXError;
+    float meanYError;
+    float meanZError;
+    float sigmaDistError;
+    float sigmaXError;
+    float sigmaYError;
+    float sigmaZError;
 
 public:
     PerformanceEvaluator(Mat rawDepth, Mat disparities, std::vector<Point> consideredDisparities, Mat camMatrix,
@@ -50,6 +68,11 @@ private:
     void generate3DpointsFromDisparities();
 
     void transform3Dpoints(const vector<Point3f> input, vector<Point3f> &output, Mat_<float> M);
+
+    void calculateErrors();
+
+    Point3f getKinect3DPoint(int x, int y);
+
 };
 
 
