@@ -36,15 +36,18 @@ class PerformanceEvaluator {
     Mat_<float> kinect2stereo;
 
     int nbCorrespondences;
-    std::vector<std::vector<Point3f>> errors;
-    std::vector<float> meanDistErrors;
-    std::vector<float> meanXErrors;
-    std::vector<float> meanYErrors;
-    std::vector<float> meanZErrors;
-    std::vector<float> sigmaDistErrors;
-    std::vector<float> sigmaXErrors;
-    std::vector<float> sigmaYErrors;
-    std::vector<float> sigmaZErrors;
+    std::vector<std::vector<float>> xErrors;
+    std::vector<std::vector<float>> yErrors;
+    std::vector<std::vector<float>> zErrors;
+    std::vector<std::vector<float>> distErrors;
+    std::vector<float> distErrorMeans;
+    std::vector<float> xErrorMeans;
+    std::vector<float> yErrorMeans;
+    std::vector<float> zErrorMeans;
+    std::vector<float> distErrorSigmas;
+    std::vector<float> xErrorSigmas;
+    std::vector<float> yErrorSigmas;
+    std::vector<float> zErrorSigmas;
     float meanDistError;
     float meanXError;
     float meanYError;
