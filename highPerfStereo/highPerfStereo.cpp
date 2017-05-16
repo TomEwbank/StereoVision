@@ -46,21 +46,23 @@ int main(int argc, char** argv) {
         int maxDisp = 70;
         int leftRightStep = 1;
         int costAggrWindowSize = 11;
-        uchar gradThreshold = 50;//25; // [0,255], disparity will be computed only for points with a higher absolute gradient
+        uchar gradThreshold = 70;//25; // [0,255], disparity will be computed only for points with a higher absolute gradient
         char tLow = 3;
         char tHigh = 15;
-        int nIters = 3;
+        int nIters = 1;
         double resizeFactor = 1;
-        bool applyBlur = true;
-        bool applyHistEqualization = true;
+        bool applyBlur = false;
+        bool applyHistEqualization = false;
         int blurSize = 5;
 
         // Feature detection parameters
         double adaptivity = 0.25;
         int minThreshold = 3;
         bool traceLines = false;
-        int lineNb = 10;
-        int lineSize = 1;
+        int nbLines = 20;
+        int lineSize = 2;
+        bool invertRows = false;
+        int nbRows = 50;
 
         // Misc. parameters
         bool recordFullDisp = true;
@@ -203,8 +205,36 @@ int main(int argc, char** argv) {
         cv::Mat_<unsigned char> leftImgAltered, rightImgAltered;
         leftImgAltered = leftImg.clone();
         rightImgAltered = rightImg.clone();
+
+        if (invertRows) {
+            int rowSize = (leftImgAltered.rows / nbRows)+1;
+            nbRows = leftImgAltered.rows/rowSize;
+            for(int i = 0; i<(nbRows-1); ++i) {
+                if (i%2 == 0) {
+                    Mat rowLeft = leftImgAltered(Rect(0,i*rowSize,leftImgAltered.cols,rowSize));
+                    Mat rowRight = rightImgAltered(Rect(0,i*rowSize,leftImgAltered.cols,rowSize));
+
+                    Mat_<unsigned char> inverter(rowSize, leftImgAltered.cols, 255);
+                    subtract(inverter, rowLeft, rowLeft);
+                    subtract(inverter, rowRight, rowRight);
+                }
+            }
+
+            if ((nbRows-1)%2 == 0) {
+                int lastRowSize = leftImgAltered.rows-rowSize*(nbRows-1);
+
+                Mat rowLeft = leftImgAltered(Rect(0,(nbRows-1)*rowSize,leftImgAltered.cols,lastRowSize));
+                Mat rowRight = rightImgAltered(Rect(0,(nbRows-1)*rowSize,leftImgAltered.cols,lastRowSize));
+
+                Mat_<unsigned char> inverter(lastRowSize, leftImgAltered.cols, 255);
+                subtract(inverter, rowLeft, rowLeft);
+                subtract(inverter, rowRight, rowRight);
+            }
+        }
+
+
         if (traceLines) {
-            int stepSize = leftImgAltered.rows / lineNb;
+            int stepSize = leftImgAltered.rows / nbLines;
             for (int k = stepSize / 2; k < leftImgAltered.rows; k = k + stepSize) {
                 for (int j = k; j < k + lineSize && j < leftImgAltered.rows; ++j) {
                     leftImgAltered.row(j).setTo(0);
@@ -778,6 +808,7 @@ int main(int argc, char** argv) {
 // TODO kinect vs stereo error estimation -> DONE PerformanceEvaluator
 // TODO make stereo module then calculate error over multiple images
 // TODO add support point to finalDisparities
+// TODO take into account the cropping made for SSE census!! and deal with the resize?
 
 // TODO finetune the parameters minimizing kinect mean error
 // TODO check influence of auto contrast techniques
