@@ -190,7 +190,7 @@ cv::Vec3b HLS2BGR(float h, float l, float s) {
         throw invalid_argument("invalid HLS parameters");
 
     float c = (1 - abs(2*l-1))*s;
-    float x = c * (1 - abs(((int)h/60)%2 - 1));
+    float x = c*(1-abs(std::fmod(h/60,2)-1));
     float m = l - c/2;
 
     float r,g,b;

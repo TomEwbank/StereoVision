@@ -21,8 +21,9 @@ class PerformanceEvaluator {
     int xOffset, yOffset;
     Mat disparities; // Disparity map
     std::vector<Point> consideredDisparities; // Pixels for which there is a disparity values
-    std::vector<Point3f> stereoPointCloud; // 3D points obtained from disparity map
-    std::vector<Point2f> stereoPointsInKinect; // Pixel coordinates of the 3D points obtained from the disparity map, reprojected in the kinect camera
+    std::vector<Point3f> stereoPointCloud; // 3D points obtained from disparity map, in the reference frame of the left stereo camera
+    std::vector<Point2f> stereoPointsInKinectImage; // Pixel coordinates of the 3D points obtained from the disparity map, reprojected in the kinect camera
+    std::vector<Point3f> stereoPointsInKinectFrame; // 3D points obtained from disparity map, in the reference frame of the kinect camera
 
     Mat kinectCamMatrix; // Camera matrix
     Mat kinectDistortion;

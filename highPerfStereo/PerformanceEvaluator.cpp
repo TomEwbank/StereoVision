@@ -97,27 +97,32 @@ PerformanceEvaluator::PerformanceEvaluator(Mat rawDepth, Mat disparities, std::v
     outputFile3.close();
 
     // Temporary: generate stereo point cloud file
-    std::vector<Point3f> transformedCloud;
-    transform3Dpoints(stereoPointCloud, transformedCloud, stereo2kinect);
+    transform3Dpoints(stereoPointCloud, stereoPointsInKinectFrame, stereo2kinect);
     std::ofstream outputFile4("stereoPointCloud_transformed.txt");
-    for (it = transformedCloud.begin(); it < transformedCloud.end(); it++) {
+    for (it = stereoPointsInKinectFrame.begin(); it < stereoPointsInKinectFrame.end(); it++) {
         if (it->z > 0 && sqrt(pow(it->x,2)+pow(it->y,2)+pow(it->z,2)) < 8000)
             outputFile4 << it->x << " " <<  it->y << " " << it->z << " " << 0 << " " << 0 << " " << 255 << std::endl;
     }
     outputFile4.close();
 
     // Generate the reprojection of the 3D points obtained from the disparity map, through the kinect camera
-    projectPoints(stereoPointCloud, rotVec, T, kinectCamMatrix, kinectDistortion, stereoPointsInKinect);
+    projectPoints(stereoPointCloud, rotVec, T, kinectCamMatrix, kinectDistortion, stereoPointsInKinectImage);
 
-    std::cout << stereoPointCloud.size() << " - " << stereoPointsInKinect.size() << std::endl;
+    std::cout << stereoPointCloud.size() << " - " << stereoPointsInKinectImage.size() << std::endl;
 
 //    // Temporary: generate reprojected pixels file
 //    std::ofstream outputFile2("reprojected_points.txt");
 //    std::vector<Point2f>::iterator it;
-//    for (it = stereoPointsInKinect.begin(); it < stereoPointsInKinect.end(); it++) {
+//    for (it = stereoPointsInKinectImage.begin(); it < stereoPointsInKinectImage.end(); it++) {
 //        outputFile2 << it->x << " " <<  it->y << std::endl;
 //    }
 //    outputFile2.close();
+
+
+    calculateErrors();
+    std::cout << "mean dist error = " << meanDistError << std::endl;
+    std::cout << "nb corresp = " << nbCorrespondences << std::endl;
+    std::cout << "total nb = " << stereoPointCloud.size() << std::endl;
 
 }
 
@@ -203,8 +208,11 @@ void PerformanceEvaluator::calculateErrors() {
     std::vector<Point3f>::const_iterator cloudIter;
     std::vector<Point2f>::const_iterator reprojectionIter;
 
-    for(cloudIter = stereoPointCloud.begin(), reprojectionIter = stereoPointsInKinect.begin();
-        cloudIter < stereoPointCloud.end();
+    std::ofstream kinectPointsFile("kinect_matched_points.txt");
+    std::ofstream stereoPointsFile("stereo_matched_points.txt");
+
+    for(cloudIter = stereoPointsInKinectFrame.begin(), reprojectionIter = stereoPointsInKinectImage.begin();
+        cloudIter < stereoPointsInKinectFrame.end();
         cloudIter++, reprojectionIter++) {
 
         Point3f ps = *cloudIter;
@@ -226,9 +234,15 @@ void PerformanceEvaluator::calculateErrors() {
                 yErrors.at(kinectRawDepth.at<int>(pixel)).push_back(yError);
                 zErrors.at(kinectRawDepth.at<int>(pixel)).push_back(zError);
                 distErrors.at(kinectRawDepth.at<int>(pixel)).push_back(distError);
+
+                kinectPointsFile << pk.x << " " <<  pk.y << " " << pk.z << " " << 255 << " " << 0 << " " << 255 << std::endl;
+                stereoPointsFile << ps.x << " " <<  ps.y << " " << ps.z << " " << 0 << " " << 255 << " " << 255 << std::endl;
             }
         }
     }
+
+    kinectPointsFile.close();
+    stereoPointsFile.close();
 
 //    std::vector<std::vector<float>>::const_iterator xErrorIter;
 //    std::vector<std::vector<float>>::const_iterator yErrorIter;
@@ -247,41 +261,41 @@ void PerformanceEvaluator::calculateErrors() {
 
         std::vector<float>* x_vec = &xErrors.at(i);
         accumulator_set<float, stats<tag::variance(lazy)>> x_acc;
-        std::for_each(x_vec->begin(), x_vec->end(), bind<void>(ref(x_acc), _1));
-        std::for_each(x_vec->begin(), x_vec->end(), bind<void>(ref(total_x_acc), _1));
-        xErrorMeans.at(i) = mean(x_acc);
-        xErrorSigmas.at(i) = sqrt(variance(x_acc));
+        x_acc = std::for_each(x_vec->begin(), x_vec->end(), x_acc);
+        total_x_acc = std::for_each(x_vec->begin(), x_vec->end(), total_x_acc);
+        xErrorMeans.at(i) = boost::accumulators::extract::mean(x_acc);
+        xErrorSigmas.at(i) = sqrt(boost::accumulators::variance(x_acc));
 
         std::vector<float>* y_vec = &yErrors.at(i);
         accumulator_set<float, stats<tag::variance(lazy)>> y_acc;
-        std::for_each(y_vec->begin(), y_vec->end(), bind<void>(ref(y_acc), _1));
-        std::for_each(y_vec->begin(), y_vec->end(), bind<void>(ref(total_y_acc), _1));
-        yErrorMeans.at(i) = mean(y_acc);
+        y_acc = std::for_each(y_vec->begin(), y_vec->end(), y_acc);
+        total_y_acc = std::for_each(y_vec->begin(), y_vec->end(), total_y_acc);
+        yErrorMeans.at(i) = boost::accumulators::extract::mean(y_acc);
         yErrorSigmas.at(i) = sqrt(variance(y_acc));
 
         std::vector<float>* z_vec = &zErrors.at(i);
         accumulator_set<float, stats<tag::variance(lazy)>> z_acc;
-        std::for_each(z_vec->begin(), z_vec->end(), bind<void>(ref(z_acc), _1));
-        std::for_each(z_vec->begin(), z_vec->end(), bind<void>(ref(total_z_acc), _1));
-        zErrorMeans.at(i) = mean(z_acc);
+        z_acc = std::for_each(z_vec->begin(), z_vec->end(), z_acc);
+        total_z_acc = std::for_each(z_vec->begin(), z_vec->end(), total_z_acc);
+        zErrorMeans.at(i) = boost::accumulators::extract::mean(z_acc);
         zErrorSigmas.at(i) = sqrt(variance(z_acc));
 
         std::vector<float>* dist_vec = &distErrors.at(i);
         accumulator_set<float, stats<tag::variance(lazy)>> dist_acc;
-        std::for_each(dist_vec->begin(), dist_vec->end(), bind<void>(ref(dist_acc), _1));
-        std::for_each(dist_vec->begin(), dist_vec->end(), bind<void>(ref(total_dist_acc), _1));
-        distErrorMeans.at(i) = mean(dist_acc);
+        dist_acc = std::for_each(dist_vec->begin(), dist_vec->end(), dist_acc);
+        total_dist_acc = std::for_each(dist_vec->begin(), dist_vec->end(), total_dist_acc);
+        distErrorMeans.at(i) = boost::accumulators::extract::mean(dist_acc);
         distErrorSigmas.at(i) = sqrt(variance(dist_acc));
 
     }
 
-    meanDistError = mean(total_dist_acc);
-    meanXError = mean(total_x_acc);
-    meanYError = mean(total_y_acc);
-    meanZError = mean(total_z_acc);
+    meanDistError = boost::accumulators::extract::mean(total_dist_acc);
+    meanXError = boost::accumulators::extract::mean(total_x_acc);
+    meanYError = boost::accumulators::extract::mean(total_y_acc);
+    meanZError = boost::accumulators::extract::mean(total_z_acc);
     sigmaDistError = sqrt(variance(total_dist_acc));
     sigmaXError = sqrt(variance(total_x_acc));
-    sigmaYError = sqrt(variance(total_y _acc));
+    sigmaYError = sqrt(variance(total_y_acc));
     sigmaZError = sqrt(variance(total_z_acc));
 
 //    accumulator_set<float, stats<tag::variance(lazy)>> mean_x_acc;

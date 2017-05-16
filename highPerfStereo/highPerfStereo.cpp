@@ -64,7 +64,12 @@ int main(int argc, char** argv) {
 
         // Misc. parameters
         bool recordFullDisp = true;
-        bool showImages = false;
+        bool showImages = true;
+        int colorMapSliding = 60;
+
+        // Variables used if showImages true (not parameters!)
+        int minDisparityFound = maxDisp;
+        int maxDisparityFound = 0;
 
 
 //        // Parse arguments
@@ -267,7 +272,6 @@ int main(int argc, char** argv) {
         // Stereo matching. Not parallelized (overhead too large)
         stereo.match(censusLeft, censusRight, keypointsLeft, keypointsRight, &correspondences);
 
-
         // Print statistics
         elapsed = (microsec_clock::local_time() - lastTime);
         cout << "Time for stereo matching: " << elapsed.total_microseconds()/1.0e6 << "s" << endl
@@ -278,24 +282,32 @@ int main(int argc, char** argv) {
 
         if (showImages) {
 
+            // Find max and min disparity to adjust the color mapping of the depth so that the view will be better
+            minDisparityFound = maxDisp;
+            maxDisparityFound = 0;
+            for (std::vector<sparsestereo::SparseMatch>::const_iterator it = correspondences.begin();
+                 it < correspondences.end();
+                 it++) {
+
+                int disp = it->disparity();
+                if(disp < minDisparityFound)
+                    minDisparityFound = disp;
+                if(disp > maxDisparityFound)
+                    maxDisparityFound = disp;
+            }
+
+
             // Highlight matches as colored boxes
             Mat_<Vec3b> screen(leftImg.rows, leftImg.cols);
             cvtColor(leftImg, screen, CV_GRAY2BGR);
-//        cvtColor(screen, screen, CV_BGR2HLS);
-//        namedWindow("BGR2HLS");
-//        imshow("BGR2HLS", screen);
-//        waitKey();
 
             for (int i = 0; i < (int) correspondences.size(); i++) {
-                double scaledDisp = (double) correspondences[i].disparity() / maxDisp;
-                Vec3b color = HLS2BGR(scaledDisp * 359, 0.5, 1);
-//            cout << "HLS returned = " << (int) color.val[0] << "," << (int) color.val[1] << "," << (int) color.val[2] << endl;
-//            color = ConvertColor(color, CV_HLS2BGR);
-//            cout << "RGB = " << (int) color.val[0] << "," << (int) color.val[1] << "," << (int) color.val[2] << endl;
-//            if(scaledDisp > 0.5)
-//                color = Vec3b(0, (1 - scaledDisp)*512, 255);
-//            else color = Vec3b(0, 255, scaledDisp*512);
 
+                // Generate the color associated to the disparity value
+                double scaledDisp = (double) (correspondences[i].disparity()-minDisparityFound) / (maxDisparityFound-minDisparityFound);
+                Vec3b color = HLS2BGR((float) std::fmod(scaledDisp * 359+colorMapSliding, 360), 0.5, 1);
+
+                // Draw the small colored box
                 rectangle(screen, correspondences[i].imgLeft->pt - Point2f(2, 2),
                           correspondences[i].imgLeft->pt + Point2f(2, 2),
                           (Scalar) color, CV_FILLED);
@@ -379,6 +391,26 @@ int main(int argc, char** argv) {
             timeProfile.push_back(elapsed.total_microseconds() / 1.0e6);
 
             if (showImages) {
+
+                // Find max and min disparity to adjust the color mapping of the depth so that the view will be better
+                minDisparityFound = maxDisp;
+                maxDisparityFound = 0;
+                std::vector<GEOM_FADE2D::Point2 *> vAllPoints;
+                dt.getVertexPointers(vAllPoints);
+
+                for (std::vector<GEOM_FADE2D::Point2 *>::const_iterator it = vAllPoints.begin();
+                     it < vAllPoints.end();
+                     it++) {
+
+                    Point2 *p = *it;
+                    int disp = disparities.at<float>(Point(p->x(), p->y()));
+
+                    if(disp < minDisparityFound)
+                        minDisparityFound = disp;
+                    if(disp > maxDisparityFound)
+                        maxDisparityFound = disp;
+                }
+
                 // Display mesh
                 Mat_<Vec3b> mesh(leftImg.rows, leftImg.cols);
                 cvtColor(leftImg, mesh, CV_GRAY2BGR);
@@ -387,18 +419,14 @@ int main(int argc, char** argv) {
                 for (pos = sEdges.begin(); pos != sEdges.end(); ++pos) {
 
                     Point2 *p1 = pos->first;
-                    float scaledDisp = disparities.at<float>(Point(p1->x(), p1->y())) / maxDisp;
-                    Vec3b color1;
-                    if (scaledDisp > 0.5)
-                        color1 = Vec3b(0, (1 - scaledDisp) * 512, 255);
-                    else color1 = Vec3b(0, 255, scaledDisp * 512);
+                    float scaledDisp = (disparities.at<float>(Point(p1->x(), p1->y()))-minDisparityFound)
+                                       / (maxDisparityFound-minDisparityFound);
+                    Vec3b color1 = HLS2BGR((float) std::fmod(scaledDisp * 359+colorMapSliding, 360), 0.5, 1);
 
                     Point2 *p2 = pos->second;
-                    scaledDisp = disparities.at<float>(Point(p2->x(), p2->y())) / maxDisp;
-                    Vec3b color2;
-                    if (scaledDisp > 0.5)
-                        color2 = Vec3b(0, (1 - scaledDisp) * 512, 255);
-                    else color2 = Vec3b(0, 255, scaledDisp * 512);
+                    scaledDisp = (disparities.at<float>(Point(p2->x(), p2->y()))-minDisparityFound)
+                                 / (maxDisparityFound-minDisparityFound);
+                    Vec3b color2 = HLS2BGR((float) std::fmod(scaledDisp * 359+colorMapSliding, 360), 0.5, 1);
 
 
                     line2(mesh, Point(p1->x(), p1->y()), Point(p2->x(), p2->y()), (Scalar) color1, (Scalar) color2);
@@ -484,13 +512,7 @@ int main(int argc, char** argv) {
                 imshow("Candidates for epipolar matching", badPts);
                 waitKey();
 
-
-                // Display interpolated disparities for high gradient points
-                //cv::normalize(finalDisp, dst, 0, 1, cv::NORM_MINMAX);
-                dst = finalDisp / maxDisp;
-//            namedWindow("High gradient disparities");
-//            imshow("High gradient disparities", dst);
-//            waitKey();
+                dst = (finalDisp-minDisparityFound) / (maxDisparityFound-minDisparityFound);
 
                 Mat finalColorDisp(finalDisp.rows, finalDisp.cols, CV_8UC3, Scalar(0, 0, 0));
                 for (int y = 0; y < finalColorDisp.rows; ++y) {
@@ -498,10 +520,7 @@ int main(int argc, char** argv) {
                     float *pixel = dst.ptr<float>(y);
                     for (int x = 0; x < finalColorDisp.cols; ++x)
                         if (pixel[x] > 0) {
-                            Vec3b color;
-                            if (pixel[x] > 0.5)
-                                color = Vec3b(0, (1 - pixel[x]) * 512, 255);
-                            else color = Vec3b(0, 255, pixel[x] * 512);
+                            Vec3b color = HLS2BGR((float) std::fmod(pixel[x] * 359+colorMapSliding, 360), 0.5, 1);
                             colorPixel[x] = color;
                         }
                 }
@@ -755,7 +774,21 @@ int main(int argc, char** argv) {
 
 // TODO display point cloud -> DONE WITH MESHLAB
 // TODO add second image in test -> DONE
+
+// TODO kinect vs stereo error estimation -> DONE PerformanceEvaluator
+// TODO make stereo module then calculate error over multiple images
+// TODO add support point to finalDisparities
+
+// TODO finetune the parameters minimizing kinect mean error
 // TODO check influence of auto contrast techniques
-// TODO replace cramer plane param calculation to increase speed
 // TODO fix & check the influence of census transform with variable window
 
+// TODO more pictures (!! take new calibration images first)
+// TODO test influence of exposure time and gain (& lightning conditions?)
+// TODO test influence of bad calibration
+// TODO make different plots of error data (mean error as function of depth, sigma as function of depth, dist error points in XZ plane for some images)
+// TODO dist error curve as a function of the distance to a frontal plane
+// TODO test with ball and laser meter?
+
+// TODO replace cramer plane param calculation to increase speed (do it earlier to speed up testing?)
+// TODO make it work on the robot platform
