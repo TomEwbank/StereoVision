@@ -223,15 +223,14 @@ void supportResampling(Fade_2D &mesh,
 
 void highPerfStereo(cv::Mat_<unsigned char> leftImg,
                     cv::Mat_<unsigned char> rightImg,
+                    Rect ROI,
                     StereoParameters parameters,
-                    Mat_<float> &disparities,
+                    Mat_<float> &disparityMap,
                     vector<Point> &computedPoints);
 
 void generatePointCloud(const Mat_<float> disparities,
                         const vector<Point> computedPoints,
                         Rect ROI);
-
-cv::Vec3b ConvertColor( cv::Vec3b src, int code);
 
 cv::Vec3b HLS2BGR(float h, float l, float s);
 

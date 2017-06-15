@@ -174,15 +174,474 @@ void supportResampling(Fade_2D &mesh,
     }
 }
 
-cv::Vec3b ConvertColor( cv::Vec3b src, int code)
-{
-    cv::Mat srcMat(1, 1, CV_8UC3 );
-    *srcMat.ptr< cv::Vec3b >( 0 ) = src;
+void highPerfStereo(cv::Mat_<unsigned char> leftImg,
+                    cv::Mat_<unsigned char> rightImg,
+                    Rect ROI,
+                    StereoParameters parameters,
+                    Mat_<float> &disparityMap,
+                    vector<Point> &highGradPoints) {
 
-    cv::Mat resMat;
-    cv::cvtColor( srcMat, resMat, code);
 
-    return *resMat.ptr< cv::Vec3b >( 0 );
+    if(leftImg.data == NULL || rightImg.data == NULL)
+        throw sparsestereo::Exception("Input images are empty!");
+
+    if(leftImg.cols != rightImg.cols || leftImg.rows != rightImg.rows)
+        throw sparsestereo::Exception("Input images do not have the same dimensions!");
+
+    if(leftImg.cols != disparityMap.cols || leftImg.rows != disparityMap.rows)
+        throw sparsestereo::Exception("disparity map do not have the same dimensions as the input images!");
+
+
+    // Stereo matching parameters
+    //TODO decide if some parameters like nIter shouldnt be a particular argument of the function
+    double uniqueness = parameters.uniqueness;
+    int maxDisp = parameters.maxDisp;
+    int leftRightStep = parameters.leftRightStep;
+    int costAggrWindowSize = parameters.costAggrWindowSize;
+    uchar gradThreshold = parameters.gradThreshold;
+    char tLow = parameters.tLow;
+    char tHigh = parameters.tHigh;
+    int nIters = parameters.nIters;
+    double resizeFactor = parameters.resizeFactor;
+    bool applyBlur = parameters.applyBlur;
+    bool applyHistEqualization = parameters.applyHistEqualization;
+    int blurSize = parameters.applyBlur;
+
+    // Feature detection parameters
+    double adaptivity = parameters.adaptivity;
+    int minThreshold = parameters.minThreshold;
+    bool traceLines = parameters.traceLines;
+    int nbLines = parameters.nbLines;
+    int lineSize = parameters.lineSize;
+    bool invertRows = parameters.invertRows;
+    int nbRows = parameters.nbRows;
+
+    // Gradient parameters
+    int kernelSize = parameters.kernelSize;
+    int scale = parameters.scale;
+    int delta = parameters.delta;
+    int ddepth = parameters.ddepth;
+
+    // Misc. parameters
+    bool recordFullDisp = parameters.recordFullDisp;
+    bool showImages = parameters.showImages;
+    int colorMapSliding = parameters.colorMapSliding;
+
+    // Variables used if showImages true (not parameters!)
+    int minDisparityFound = maxDisp;
+    int maxDisparityFound = 0;
+
+
+    // TODO check that it does not modify the original image outside the fnction
+    leftImg = leftImg(ROI).clone();
+    rightImg = rightImg(ROI).clone();
+
+    // TODO deal with resize parameter
+//    cv::Mat_<unsigned char> leftImg, rightImg;
+//    resize(leftImgInit, leftImg, Size(), resizeFactor, resizeFactor);
+//    resize(rightImgInit, rightImg, Size(), resizeFactor, resizeFactor);
+
+    // Crop image so that SSE implementation won't crash
+    //cv::Rect myROI(0,0,1232,1104);
+    cv::Rect newROI(0,0,16*(leftImg.cols/16),16*(leftImg.rows/16));
+    leftImg = leftImg(newROI);
+    rightImg = rightImg(newROI);
+
+    if (applyHistEqualization) {
+
+        equalizeHist(leftImg, leftImg);
+        equalizeHist(rightImg, rightImg);
+    }
+
+    // Apply Laplace function
+    Mat grd, abs_grd;
+
+    cv::Laplacian( leftImg, grd, ddepth, kernelSize, scale, delta, BORDER_DEFAULT );
+    convertScaleAbs( grd, abs_grd );
+
+    if (showImages) {
+        // Show what you got
+        namedWindow("Gradient left");
+        imshow("Gradient left", abs_grd);
+        waitKey(0);
+    }
+
+    // Get the set of high gradient points
+    int v = 0;
+    Mat highGradMask(grd.rows, grd.cols, CV_8U, Scalar(0));
+    for(int j = 2; j < abs_grd.rows-2; ++j) {
+        uchar* pixel = abs_grd.ptr(j);
+        for (int i = 2; i < abs_grd.cols-2; ++i) {
+            if (pixel[i] > gradThreshold) {
+                highGradPoints.push_back(Point(i, j));
+                highGradMask.at<uchar>(highGradPoints[v]) = (uchar) 200;
+                ++v;
+            }
+        }
+    }
+
+    if (showImages) {
+        // Show what you got
+        namedWindow("Gradient mask");
+        imshow("Gradient mask", highGradMask);
+        waitKey(0);
+    }
+
+    if (applyBlur) {
+        GaussianBlur(leftImg, leftImg, Size(blurSize, blurSize), 0, 0);
+        GaussianBlur(rightImg, rightImg, Size(blurSize, blurSize), 0, 0);
+    }
+
+
+    // Horizontal lines tracing in images for better feature detection
+    cv::Mat_<unsigned char> leftImgAltered, rightImgAltered;
+    leftImgAltered = leftImg.clone();
+    rightImgAltered = rightImg.clone();
+
+    if (invertRows) {
+        int rowSize = (leftImgAltered.rows / nbRows)+1;
+        nbRows = leftImgAltered.rows/rowSize;
+        for(int i = 0; i<(nbRows-1); ++i) {
+            if (i%2 == 0) {
+                Mat rowLeft = leftImgAltered(Rect(0,i*rowSize,leftImgAltered.cols,rowSize));
+                Mat rowRight = rightImgAltered(Rect(0,i*rowSize,leftImgAltered.cols,rowSize));
+
+                Mat_<unsigned char> inverter(rowSize, leftImgAltered.cols, 255);
+                subtract(inverter, rowLeft, rowLeft);
+                subtract(inverter, rowRight, rowRight);
+            }
+        }
+
+        if ((nbRows-1)%2 == 0) {
+            int lastRowSize = leftImgAltered.rows-rowSize*(nbRows-1);
+
+            Mat rowLeft = leftImgAltered(Rect(0,(nbRows-1)*rowSize,leftImgAltered.cols,lastRowSize));
+            Mat rowRight = rightImgAltered(Rect(0,(nbRows-1)*rowSize,leftImgAltered.cols,lastRowSize));
+
+            Mat_<unsigned char> inverter(lastRowSize, leftImgAltered.cols, 255);
+            subtract(inverter, rowLeft, rowLeft);
+            subtract(inverter, rowRight, rowRight);
+        }
+    }
+
+
+    if (traceLines) {
+        int stepSize = leftImgAltered.rows / nbLines;
+        for (int k = stepSize / 2; k < leftImgAltered.rows; k = k + stepSize) {
+            for (int j = k; j < k + lineSize && j < leftImgAltered.rows; ++j) {
+                leftImgAltered.row(j).setTo(0);
+                rightImgAltered.row(j).setTo(0);
+            }
+        }
+    }
+
+
+    if (showImages) {
+        // Show what you got
+        namedWindow("left altered image");
+        imshow("left altered image", leftImgAltered);
+        waitKey(0);
+        namedWindow("right altered image");
+        imshow("right altered image", rightImgAltered);
+        waitKey(0);
+    }
+
+    // Load rectification data
+    StereoRectification* rectification = NULL;
+//        if(calibFile != NULL)
+//            rectification = new StereoRectification(CalibrationResult(calibFile));
+
+    // The stereo matcher. SSE Optimized implementation is only available for a 5x5 window
+    SparseStereo<CensusWindow<5>, short> stereo(maxDisp, 1, uniqueness,
+                                                rectification, false, false, leftRightStep);
+
+    // Feature detectors for left and right image
+    FeatureDetector* leftFeatureDetector = new ExtendedFAST(true, minThreshold, adaptivity, false, 2);
+    FeatureDetector* rightFeatureDetector = new ExtendedFAST(false, minThreshold, adaptivity, false, 2);
+
+    vector<SparseMatch> correspondences;
+
+    // Objects for storing final and intermediate results
+    cv::Mat_<char> charLeft(leftImg.rows, leftImg.cols),
+            charRight(rightImg.rows, rightImg.cols);
+    Mat_<unsigned int> censusLeft(leftImg.rows, leftImg.cols),
+            censusRight(rightImg.rows, rightImg.cols);
+    vector<KeyPoint> keypointsLeft, keypointsRight;
+
+    // Featuredetection. This part can be parallelized with OMP
+#pragma omp parallel sections default(shared) num_threads(2)
+    {
+#pragma omp section
+        {
+            keypointsLeft.clear();
+            leftFeatureDetector->detect(leftImgAltered, keypointsLeft);
+            ImageConversion::unsignedToSigned(leftImg, &charLeft);
+            Census::transform5x5(charLeft, &censusLeft);
+        }
+#pragma omp section
+        {
+            keypointsRight.clear();
+            rightFeatureDetector->detect(rightImgAltered, keypointsRight);
+            ImageConversion::unsignedToSigned(rightImg, &charRight);
+            Census::transform5x5(charRight, &censusRight);
+        }
+    }
+
+    // Stereo matching. Not parallelized (overhead too large)
+    stereo.match(censusLeft, censusRight, keypointsLeft, keypointsRight, &correspondences);
+
+    if (showImages) {
+
+        // Find max and min disparity to adjust the color mapping of the depth so that the view will be better
+        minDisparityFound = maxDisp;
+        maxDisparityFound = 0;
+        for (std::vector<sparsestereo::SparseMatch>::const_iterator it = correspondences.begin();
+             it < correspondences.end();
+             it++) {
+
+            int disp = it->disparity();
+            if(disp < minDisparityFound)
+                minDisparityFound = disp;
+            if(disp > maxDisparityFound)
+                maxDisparityFound = disp;
+        }
+
+
+        // Highlight matches as colored boxes
+        Mat_<Vec3b> screen(leftImg.rows, leftImg.cols);
+        cvtColor(leftImg, screen, CV_GRAY2BGR);
+
+        for (int i = 0; i < (int) correspondences.size(); i++) {
+
+            // Generate the color associated to the disparity value
+            double scaledDisp = (double) (correspondences[i].disparity()-minDisparityFound) / (maxDisparityFound-minDisparityFound);
+            Vec3b color = HLS2BGR((float) std::fmod(scaledDisp * 359+colorMapSliding, 360), 0.5, 1);
+
+            // Draw the small colored box
+            rectangle(screen, correspondences[i].imgLeft->pt - Point2f(2, 2),
+                      correspondences[i].imgLeft->pt + Point2f(2, 2),
+                      (Scalar) color, CV_FILLED);
+        }
+
+
+        // Display image and wait
+        namedWindow("Sparse stereo");
+        imshow("Sparse stereo", screen);
+        waitKey();
+    }
+
+
+    // Create the triangulation mesh & the color disparity map
+    Fade_2D dt;
+    Mat_<float> disparities(leftImg.rows, leftImg.cols, (float) 0); // Holds the temporary disparities
+    for(int i=0; i<(int)correspondences.size(); i++) {
+        float x = correspondences[i].imgLeft->pt.x;
+        float y = correspondences[i].imgLeft->pt.y;
+        float d = correspondences[i].disparity();
+
+        disparities.at<float>(Point(x,y)) = d;
+
+        Point2 p(x, y);
+        dt.insert(p);
+    }
+
+    // Init final cost map
+    Mat_<char> finalCosts(leftImg.rows, leftImg.cols, (char) 25);
+    unsigned int occGridSize = 64;
+
+    for (int iter = 1; iter <= nIters; ++iter) {
+
+        // Fill lookup table for plane parameters
+        unordered_map<MeshTriangle, Plane> planeTable;
+        std::set<std::pair<Point2 *, Point2 *> > sEdges;
+        std::vector<Triangle2 *> vAllTriangles;
+        dt.getTrianglePointers(vAllTriangles);
+        for (std::vector<Triangle2 *>::iterator it = vAllTriangles.begin();
+             it != vAllTriangles.end(); ++it) {
+
+            MeshTriangle mt = {*it};
+            unordered_map<MeshTriangle, Plane>::const_iterator got = planeTable.find(mt);
+            if (got == planeTable.end()) {
+                Plane plane = Plane(*it, disparities);
+                planeTable[mt] = plane;
+            }
+            // TODO optimize by not recompute plane parameters for unchanged triangles
+
+            if (showImages) {
+                // Use this loop over the triangles to retrieve all unique edges to display
+                for (int i = 0; i < 3; ++i) {
+                    Point2 *p0((*it)->getCorner((i + 1) % 3));
+                    Point2 *p1((*it)->getCorner((i + 2) % 3));
+                    if (p0 > p1) std::swap(p0, p1);
+                    sEdges.insert(std::make_pair(p0, p1));
+                }
+            }
+        }
+
+        if (showImages) {
+
+            // Find max and min disparity to adjust the color mapping of the depth so that the view will be better
+            minDisparityFound = maxDisp;
+            maxDisparityFound = 0;
+            std::vector<GEOM_FADE2D::Point2 *> vAllPoints;
+            dt.getVertexPointers(vAllPoints);
+
+            for (std::vector<GEOM_FADE2D::Point2 *>::const_iterator it = vAllPoints.begin();
+                 it < vAllPoints.end();
+                 it++) {
+
+                Point2 *p = *it;
+                int disp = disparities.at<float>(Point(p->x(), p->y()));
+
+                if(disp < minDisparityFound)
+                    minDisparityFound = disp;
+                if(disp > maxDisparityFound)
+                    maxDisparityFound = disp;
+            }
+
+            // Display mesh
+            Mat_<Vec3b> mesh(leftImg.rows, leftImg.cols);
+            cvtColor(leftImg, mesh, CV_GRAY2BGR);
+            set<std::pair<Point2 *, Point2 *>>::const_iterator pos;
+
+            for (pos = sEdges.begin(); pos != sEdges.end(); ++pos) {
+
+                Point2 *p1 = pos->first;
+                float scaledDisp = (disparities.at<float>(Point(p1->x(), p1->y()))-minDisparityFound)
+                                   / (maxDisparityFound-minDisparityFound);
+                Vec3b color1 = HLS2BGR((float) std::fmod(scaledDisp * 359+colorMapSliding, 360), 0.5, 1);
+
+                Point2 *p2 = pos->second;
+                scaledDisp = (disparities.at<float>(Point(p2->x(), p2->y()))-minDisparityFound)
+                             / (maxDisparityFound-minDisparityFound);
+                Vec3b color2 = HLS2BGR((float) std::fmod(scaledDisp * 359+colorMapSliding, 360), 0.5, 1);
+
+
+                line2(mesh, Point(p1->x(), p1->y()), Point(p2->x(), p2->y()), (Scalar) color1, (Scalar) color2);
+            }
+
+
+            // Display image and wait
+            namedWindow("Triangular mesh");
+            imshow("Triangular mesh", mesh);
+            waitKey();
+        }
+
+
+        // Disparity interpolation
+        if (showImages || recordFullDisp) {
+            // interpolate on the complete image to be able to display the dense disparity map, or record it
+            for (int j = 0; j < disparities.rows; ++j) {
+                float *pixel = disparities.ptr<float>(j);
+                for (int i = 0; i < disparities.cols; ++i) {
+                    Point2 pointInPlaneFade = Point2(i,j);
+                    Triangle2 *t = dt.locate(pointInPlaneFade);
+                    MeshTriangle mt = {t};
+
+                    if (t != NULL) {
+                        unordered_map<MeshTriangle, Plane>::const_iterator got = planeTable.find(mt);
+                        Plane plane;
+                        if (got == planeTable.end()) {
+                            plane = Plane(t, disparities);
+                            planeTable[mt] = plane;
+                        } else {
+                            plane = got->second;
+                        }
+                        pixel[i] = plane.getDepth(pointInPlaneFade);
+                    }
+
+                }
+            }
+
+            // Display interpolated disparities
+            cv::Mat dst = disparities / maxDisp;
+            if (showImages) {
+
+                namedWindow("Full interpolated disparities");
+                imshow("Full interpolated disparities", dst);
+                waitKey();
+            }
+
+            if (recordFullDisp) {
+                Mat outputImg;
+                Mat temp = dst * 255;
+                temp.convertTo(outputImg, CV_8UC1);
+                imwrite("disparity" + to_string(iter) + ".png", outputImg);
+            }
+        }
+
+        Mat_<char> matchingCosts(leftImg.rows, leftImg.cols, tHigh);
+        costEvaluation(censusLeft, censusRight, highGradPoints, disparities, matchingCosts);
+        PotentialSupports ps = disparityRefinement(highGradPoints, disparities, matchingCosts,
+                                                   tLow, tHigh, occGridSize, disparityMap, finalCosts);
+
+        if(showImages) {
+
+            // Highlight matches as colored boxes
+            Mat_<Vec3b> badPts(leftImg.rows, leftImg.cols);
+            cvtColor(leftImg, badPts, CV_GRAY2BGR);
+
+            for (unsigned int i = 0; i < ps.getOccGridWidth(); ++i) {
+                for (unsigned int j = 0; j < ps.getOccGridHeight(); ++j) {
+                    InvalidMatch p = ps.getInvalidMatch(i, j);
+                    rectangle(badPts, Point2f(p.x, p.y) - Point2f(2, 2),
+                              Point2f(p.x, p.y) + Point2f(2, 2),
+                              (Scalar) Vec3b(0, 255, 0), CV_FILLED);
+                }
+            }
+
+            namedWindow("Candidates for epipolar matching");
+            imshow("Candidates for epipolar matching", badPts);
+            waitKey();
+
+            cv::Mat dst = (disparityMap-minDisparityFound) / (maxDisparityFound-minDisparityFound);
+
+            Mat finalColorDisp(disparityMap.rows, disparityMap.cols, CV_8UC3, Scalar(0, 0, 0));
+            for (int y = 0; y < finalColorDisp.rows; ++y) {
+                Vec3b *colorPixel = finalColorDisp.ptr<Vec3b>(y);
+                float *pixel = dst.ptr<float>(y);
+                for (int x = 0; x < finalColorDisp.cols; ++x)
+                    if (pixel[x] > 0) {
+                        Vec3b color = HLS2BGR((float) std::fmod(pixel[x] * 359+colorMapSliding, 360), 0.5, 1);
+                        colorPixel[x] = color;
+                    }
+            }
+
+
+            namedWindow("High gradient color disparities");
+            imshow("High gradient color disparities", finalColorDisp);
+            waitKey();
+        }
+
+        if (iter != nIters) {
+
+            // Support resampling
+            supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, disparities, tLow, tHigh, maxDisp);
+            occGridSize = max((unsigned int) 1, occGridSize / 2);
+        }
+    }
+
+    // Add all support points to disparities
+    std::vector<GEOM_FADE2D::Point2 *> vAllPoints;
+    dt.getVertexPointers(vAllPoints);
+
+    for (std::vector<GEOM_FADE2D::Point2 *>::const_iterator it = vAllPoints.begin();
+         it < vAllPoints.end();
+         it++) {
+
+        Point2 *p = *it;
+        Point pixel(p->x(), p->y());
+        int disp = disparities.at<float>(pixel);
+        disparityMap.at<float>(pixel) = disp;
+        highGradPoints.push_back(pixel);
+    }
+
+    // Clean up
+    delete leftFeatureDetector;
+    delete rightFeatureDetector;
+    if(rectification != NULL)
+        delete rectification;
+
 }
 
 cv::Vec3b HLS2BGR(float h, float l, float s) {

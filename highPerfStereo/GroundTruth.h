@@ -18,7 +18,7 @@ public:
     float disparity;
     double distance;
 
-    friend std::istream& operator>>(std::istream& str, GroundTruth& data);
+    std::istream& operator<<(std::istream& str);
 
     cv::Point2d getCoordInROI(cv::Rect roi) {
         return cv::Point2d(x-roi.x, y-roi.y);

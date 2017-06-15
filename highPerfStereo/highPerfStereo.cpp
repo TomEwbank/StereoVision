@@ -605,7 +605,7 @@ int main(int argc, char** argv) {
         ifstream readFile(groundTruthFile);
         vector<GroundTruth> groundTruthVec;
         GroundTruth data;
-        while(readFile >> data) {
+        while(data << readFile) {
             //cout << data.x << ", " << data.y << ", " << data.disparity << ", " << data.distance << ", " << data.pointName << endl;
             groundTruthVec.push_back(data);
         }

@@ -4,7 +4,7 @@
 
 #include "BallGroundTruth.h"
 
-std::istream& BallGroundTruth::operator>>(std::istream& str, BallGroundTruth& data)
+std::istream& BallGroundTruth::operator<<(std::istream& str)
 {
     std::string line;
     std::string sx1;
@@ -22,21 +22,21 @@ std::istream& BallGroundTruth::operator>>(std::istream& str, BallGroundTruth& da
              std::getline(iss, sdist))
         {
             /* OK: All read operations worked */
-            data.x = std::stoi(sx1);
-            data.y = std::stoi(sy1);
-            data.width = std::stoi(sx2)-data.x;
-            data.height = std::stof(sy2)-data.y;
+            this->x = std::stoi(sx1);
+            this->y = std::stoi(sy1);
+            this->width = std::stoi(sx2)-this->x;
+            this->height = std::stof(sy2)-this->y;
 
-            if (data.width != data.height)
+            if (this->width != this->height)
                 std::cout << "Warning: Ball ROI not square!" << std::endl;
 
-            data.depth = std::stod(sdist)*10;
+            double depth = std::stod(sdist)*10;
 
-            data.radius = data.width/2;
-            data.cx = data.x+data.radius;
-            data.cy = data.y+data.radius;
+            this->radius = this->width/2;
+            this->cx = this->x+this->radius;
+            this->cy = this->y+this->radius;
 
-            data.computeBallPixels();
+            this->computeBallPixels();
         }
         else
         {
@@ -94,3 +94,63 @@ void BallGroundTruth::computeBallPixels() {
         }
     }
 }
+
+
+//BallGroundTruth::BallGroundTruth(int x, int y, int width, int height, double depth, double radius, double cx,
+//                                 double cy) {
+//    this->x = x;
+//    this->y = y;
+//    this->width = width;
+//    this->height = height;
+//    this->depth = depth;
+//    this->radius = radius;
+//    this->cx = cx;
+//    this->cy = cy;
+//    computeBallPixels();
+//}
+//
+//
+//std::istream& operator>>(std::istream& str, BallGroundTruth& data)
+//{
+//    std::string line;
+//    std::string sx1;
+//    std::string sy1;
+//    std::string sx2;
+//    std::string sy2;
+//    std::string sdist;
+//    if (std::getline(str,line))
+//    {
+//        std::stringstream iss(line);
+//        if ( std::getline(iss, sx1, ',')        &&
+//             std::getline(iss, sy1, ',')         &&
+//             std::getline(iss, sx2, ',')      &&
+//             std::getline(iss, sy2, ',') &&
+//             std::getline(iss, sdist))
+//        {
+//            /* OK: All read operations worked */
+//            int x = std::stoi(sx1);
+//            int y = std::stoi(sy1);
+//            int width = std::stoi(sx2)-data.x;
+//            int height = std::stof(sy2)-data.y;
+//
+//            if (width != height)
+//                throw std::runtime_error("Error: Ball ROI not square!");
+//
+//            double depth = std::stod(sdist)*10;
+//
+//            double radius = data.width/2;
+//            double cx = data.x+data.radius;
+//            double cy = data.y+data.radius;
+//
+//            data = new BallGroundTruth(x,y,width,height,depth,radius,cx,cy);
+//        }
+//        else
+//        {
+//            // One operation failed.
+//            // So set the state on the main stream
+//            // to indicate failure.
+//            str.setstate(std::ios::failbit);
+//        }
+//    }
+//    return str;
+//}

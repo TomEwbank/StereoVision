@@ -8,7 +8,7 @@
 #include <sstream>
 #include <regex>
 
-std::istream& GroundTruth::operator>>(std::istream& str, GroundTruth& data)
+std::istream& GroundTruth::operator<<(std::istream& str)
 {
     std::string line;
     std::string sname;
@@ -26,11 +26,11 @@ std::istream& GroundTruth::operator>>(std::istream& str, GroundTruth& data)
              std::getline(iss, sdist))
         {
             /* OK: All read operations worked */
-            data.pointName = std::regex_replace(sname, std::regex("^ +| +$|( ) +"), "$1");
-            data.x = std::stoi(sx);
-            data.y = std::stoi(sy);
-            data.disparity = std::stof(sdisp);
-            data.distance = std::stod(sdist)*10;
+            this->pointName = std::regex_replace(sname, std::regex("^ +| +$|( ) +"), "$1");
+            this->x = std::stoi(sx);
+            this->y = std::stoi(sy);
+            this->disparity = std::stof(sdisp);
+            this->distance = std::stod(sdist)*10;
         }
         else
         {

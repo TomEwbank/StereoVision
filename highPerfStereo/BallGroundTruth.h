@@ -10,7 +10,7 @@
 
 class BallGroundTruth {
 
-public:
+private:
 
     // Ball ROI
     int x;
@@ -29,14 +29,15 @@ public:
     // List of pixels belonging to the ball (circle circumscripted in the ROI)
     std::list<cv::Point2i> ballPixels;
 
-    friend std::istream& operator>>(std::istream& str, BallGroundTruth& data);
+    void computeBallPixels();
+
+public:
+
+    std::istream& operator<<(std::istream& str);
 
     cv::Point2d getCoordInROI(cv::Rect roi) {
         return cv::Point2d(x-roi.x, y-roi.y);
     }
-
-private:
-    void computeBallPixels();
 
 };
 
