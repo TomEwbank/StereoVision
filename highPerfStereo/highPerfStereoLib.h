@@ -32,6 +32,43 @@ using namespace boost::posix_time;
 using namespace GEOM_FADE2D;
 
 
+class StereoParameters {
+public:
+    // Stereo matching parameters
+    double uniqueness;
+    int maxDisp;
+    int leftRightStep;
+    int costAggrWindowSize;
+    uchar gradThreshold; // [0,255], disparity will be computed only for points with a higher absolute gradient
+    char tLow;
+    char tHigh;
+    int nIters;
+    double resizeFactor;
+    bool applyBlur;
+    bool applyHistEqualization;
+    int blurSize;
+
+    // Laplace parameters (gradient calculation)
+    int kernelSize;
+    int scale;
+    int delta;
+    int ddepth;
+
+    // Feature detection parameters
+    double adaptivity;
+    int minThreshold;
+    bool traceLines;
+    int nbLines;
+    int lineSize;
+    bool invertRows;
+    int nbRows;
+
+    // Misc. parameters
+    bool recordFullDisp;
+    bool showImages;
+    int colorMapSliding;
+};
+
 class ConfidentSupport
 {
 public:
@@ -183,6 +220,16 @@ void supportResampling(Fade_2D &mesh,
                        int censusSize, int costAggrWindowSize,
                        Mat_<float> &disparities,
                        char tLow, char tHigh, int maxDisp);
+
+void highPerfStereo(cv::Mat_<unsigned char> leftImg,
+                    cv::Mat_<unsigned char> rightImg,
+                    StereoParameters parameters,
+                    Mat_<float> &disparities,
+                    vector<Point> &computedPoints);
+
+void generatePointCloud(const Mat_<float> disparities,
+                        const vector<Point> computedPoints,
+                        Rect ROI);
 
 cv::Vec3b ConvertColor( cv::Vec3b src, int code);
 

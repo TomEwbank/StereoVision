@@ -27,7 +27,7 @@
 //#include <pcl/common/projection_matrix.h>
 //#include <pcl/visualization/cloud_viewer.h>
 #include "highPerfStereoLib.h"
-#include "GroundThruth.h"
+#include "GroundTruth.h"
 #include "PerformanceEvaluator.h"
 
 using namespace std;
@@ -47,12 +47,12 @@ int main(int argc, char** argv) {
         int leftRightStep = 1;
         int costAggrWindowSize = 11;
         uchar gradThreshold = 70;//25; // [0,255], disparity will be computed only for points with a higher absolute gradient
-        char tLow = 3;
-        char tHigh = 15;
-        int nIters = 1;
+        char tLow = 2;
+        char tHigh = 10;
+        int nIters = 2;
         double resizeFactor = 1;
-        bool applyBlur = false;
-        bool applyHistEqualization = false;
+        bool applyBlur = true;
+        bool applyHistEqualization = true;
         int blurSize = 5;
 
         // Feature detection parameters
@@ -95,7 +95,8 @@ int main(int argc, char** argv) {
         String groundTruthFile = folderName + "dist_" + pairName;
 
         std::vector<double> timeProfile;
-
+        ptime lastTime;
+        time_duration elapsed;
 
         // Read input images
         cv::Mat_<unsigned char> leftImgInit, rightImgInit, colorLeftImg;
@@ -123,8 +124,19 @@ int main(int argc, char** argv) {
         leftImg = leftImg(myROI);
         rightImg = rightImg(myROI);
 
-//        equalizeHist(leftImg, leftImg);
-//        equalizeHist(rightImg, rightImg);
+
+
+        if (applyHistEqualization) {
+            lastTime = microsec_clock::local_time();
+
+            equalizeHist(leftImg, leftImg);
+            equalizeHist(rightImg, rightImg);
+
+            elapsed = (microsec_clock::local_time() - lastTime);
+            cout << "Time to equalize hist: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
+            timeProfile.push_back(elapsed.total_microseconds()/1.0e6);
+        }
+
 
         // Apply Laplace function
         Mat grd, abs_grd;
@@ -133,10 +145,10 @@ int main(int argc, char** argv) {
         int delta = 0;
         int ddepth = CV_16S;
 
-        ptime lastTime = microsec_clock::local_time();
+        lastTime = microsec_clock::local_time();
         cv::Laplacian( leftImg, grd, ddepth, kernel_size, scale, delta, BORDER_DEFAULT );
         convertScaleAbs( grd, abs_grd );
-        time_duration elapsed = (microsec_clock::local_time() - lastTime);
+        elapsed = (microsec_clock::local_time() - lastTime);
         cout << "Time for gradient calculation: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
         timeProfile.push_back(elapsed.total_microseconds()/1.0e6);
 
@@ -174,18 +186,6 @@ int main(int argc, char** argv) {
             namedWindow("Gradient mask");
             imshow("Gradient mask", highGradMask);
             waitKey(0);
-        }
-
-
-        if (applyHistEqualization) {
-            lastTime = microsec_clock::local_time();
-
-            equalizeHist(leftImg, leftImg);
-            equalizeHist(rightImg, rightImg);
-
-            elapsed = (microsec_clock::local_time() - lastTime);
-            cout << "Time to equalize hist: " << elapsed.total_microseconds()/1.0e6 << "s" << endl;
-            timeProfile.push_back(elapsed.total_microseconds()/1.0e6);
         }
 
         if (applyBlur) {
@@ -407,7 +407,7 @@ int main(int argc, char** argv) {
                 // TODO optimize by not recompute plane parameters for unchanged triangles
 
                 if (showImages) {
-                    // Use this loop over the triangles to retreive all unique edges to display
+                    // Use this loop over the triangles to retrieve all unique edges to display
                     for (int i = 0; i < 3; ++i) {
                         Point2 *p0((*it)->getCorner((i + 1) % 3));
                         Point2 *p1((*it)->getCorner((i + 2) % 3));
@@ -573,6 +573,21 @@ int main(int argc, char** argv) {
             }
         }
 
+        // Add all support points to disparities
+        std::vector<GEOM_FADE2D::Point2 *> vAllPoints;
+        dt.getVertexPointers(vAllPoints);
+
+        for (std::vector<GEOM_FADE2D::Point2 *>::const_iterator it = vAllPoints.begin();
+             it < vAllPoints.end();
+             it++) {
+
+            Point2 *p = *it;
+            Point pixel(p->x(), p->y());
+            int disp = disparities.at<float>(pixel);
+            finalDisp.at<float>(pixel) = disp;
+            highGradPoints.push_back(pixel);
+        }
+
         double totalTime = 0;
         for(vector<double>::iterator it = timeProfile.begin() ; it < timeProfile.end(); it++) {
             totalTime += *it;
@@ -588,8 +603,8 @@ int main(int argc, char** argv) {
 /*        // True distance error estimation
 
         ifstream readFile(groundTruthFile);
-        vector<GroundThruth> groundTruthVec;
-        GroundThruth data;
+        vector<GroundTruth> groundTruthVec;
+        GroundTruth data;
         while(readFile >> data) {
             //cout << data.x << ", " << data.y << ", " << data.disparity << ", " << data.distance << ", " << data.pointName << endl;
             groundTruthVec.push_back(data);
@@ -606,7 +621,7 @@ int main(int argc, char** argv) {
         double meanDispError = 0;
         int nbSkipped = 0;
         for (int n = 0; n < groundTruthVec.size(); ++n) {
-            GroundThruth t = groundTruthVec[n];
+            GroundTruth t = groundTruthVec[n];
             Point2i coordInROI = t.getCoordInROI(commonROI);
             float disp = disparities.at<float>(coordInROI);
             double dispError = abs(disp-t.disparity);
@@ -802,24 +817,28 @@ int main(int argc, char** argv) {
     }
 }
 
-// TODO display point cloud -> DONE WITH MESHLAB
-// TODO add second image in test -> DONE
+// display point cloud -> DONE WITH MESHLAB
+// add second image in test -> DONE
 
-// TODO kinect vs stereo error estimation -> DONE PerformanceEvaluator
+// kinect vs stereo error estimation -> DONE PerformanceEvaluator
 // TODO make stereo module then calculate error over multiple images
-// TODO add support point to finalDisparities
-// TODO take into account the cropping made for SSE census!! and deal with the resize?
+// add support point to finalDisparities
+// take into account the cropping made for SSE census!! and deal with the resize? -> NO NEED, the origin of the new ROI stays the same
+// TODO investigate why huge error on some reprojected points
 
-// TODO finetune the parameters minimizing kinect mean error
 // TODO check influence of auto contrast techniques
 // TODO fix & check the influence of census transform with variable window
+// TODO finetune the parameters minimizing kinect mean error
 
 // TODO more pictures (!! take new calibration images first)
 // TODO test influence of exposure time and gain (& lightning conditions?)
 // TODO test influence of bad calibration
 // TODO make different plots of error data (mean error as function of depth, sigma as function of depth, dist error points in XZ plane for some images)
 // TODO dist error curve as a function of the distance to a frontal plane
-// TODO test with ball and laser meter?
+
+// build test dataset with ball and laser meter
+// TODO add pictures with more object around the ball to the dataset
+// TODO code to evaluate performance of ball localisation
 
 // TODO replace cramer plane param calculation to increase speed (do it earlier to speed up testing?)
 // TODO make it work on the robot platform

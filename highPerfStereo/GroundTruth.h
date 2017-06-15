@@ -8,7 +8,7 @@
 #include <string>
 #include <opencv2/opencv.hpp>
 
-class GroundThruth {
+class GroundTruth {
 
 public:
 
@@ -18,7 +18,7 @@ public:
     float disparity;
     double distance;
 
-    friend std::istream& operator>>(std::istream& str, GroundThruth& data);
+    friend std::istream& operator>>(std::istream& str, GroundTruth& data);
 
     cv::Point2d getCoordInROI(cv::Rect roi) {
         return cv::Point2d(x-roi.x, y-roi.y);

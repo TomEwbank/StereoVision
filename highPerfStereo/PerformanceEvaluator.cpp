@@ -108,7 +108,7 @@ PerformanceEvaluator::PerformanceEvaluator(Mat rawDepth, Mat disparities, std::v
     // Generate the reprojection of the 3D points obtained from the disparity map, through the kinect camera
     projectPoints(stereoPointCloud, rotVec, T, kinectCamMatrix, kinectDistortion, stereoPointsInKinectImage);
 
-    std::cout << stereoPointCloud.size() << " - " << stereoPointsInKinectImage.size() << std::endl;
+//    std::cout << stereoPointCloud.size() << " - " << stereoPointsInKinectImage.size() << std::endl;
 
 //    // Temporary: generate reprojected pixels file
 //    std::ofstream outputFile2("reprojected_points.txt");
@@ -121,6 +121,9 @@ PerformanceEvaluator::PerformanceEvaluator(Mat rawDepth, Mat disparities, std::v
 
     calculateErrors();
     std::cout << "mean dist error = " << meanDistError << std::endl;
+    std::cout << "sigma dist error = " << sigmaDistError << std::endl;
+    std::cout << "mean dist rel error = " << meanRelDistError << std::endl;
+    std::cout << "sigma dist rel error = " << sigmaRelDistError << std::endl;
     std::cout << "nb corresp = " << nbCorrespondences << std::endl;
     std::cout << "total nb = " << stereoPointCloud.size() << std::endl;
 
@@ -191,7 +194,7 @@ void PerformanceEvaluator::transform3Dpoints(const std::vector<Point3f> input, v
 
         Mat_<float> newV = M*v;
         Point3f newP(newV.at<float>(Point(0,0)), newV.at<float>(Point(0,1)), newV.at<float>(Point(0,2)));
-        std::cout << newP.x << " " << newP.y << " " << newP.z << std::endl;
+//        std::cout << newP.x << " " << newP.y << " " << newP.z << std::endl;
         output.push_back(newP);
     }
 }
@@ -286,6 +289,9 @@ void PerformanceEvaluator::calculateErrors() {
         total_dist_acc = std::for_each(dist_vec->begin(), dist_vec->end(), total_dist_acc);
         distErrorMeans.at(i) = boost::accumulators::extract::mean(dist_acc);
         distErrorSigmas.at(i) = sqrt(variance(dist_acc));
+        if (i != 2047 && zErrors.at(i).size() > 0) {
+            relDistErrorMeans.push_back(distErrorMeans.at(i) / rawDepthToMilliMeters(i));
+        }
 
     }
 
@@ -297,6 +303,11 @@ void PerformanceEvaluator::calculateErrors() {
     sigmaXError = sqrt(variance(total_x_acc));
     sigmaYError = sqrt(variance(total_y_acc));
     sigmaZError = sqrt(variance(total_z_acc));
+
+    accumulator_set<float, stats<tag::variance(lazy)>> dist_rel_acc;
+    dist_rel_acc = std::for_each(relDistErrorMeans.begin(), relDistErrorMeans.end(), dist_rel_acc);
+    meanRelDistError = boost::accumulators::extract::mean(dist_rel_acc);
+    sigmaRelDistError = sqrt(variance(dist_rel_acc));
 
 //    accumulator_set<float, stats<tag::variance(lazy)>> mean_x_acc;
 //    std::for_each(xErrorMeans.begin(), xErrorMeans.end(), bind<void>(ref(mean_x_acc), _1));

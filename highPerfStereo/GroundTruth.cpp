@@ -2,13 +2,13 @@
 // Created by dallas on 09.04.17.
 //
 
-#include "GroundThruth.h"
+#include "GroundTruth.h"
 #include <string>
 #include <iostream>
 #include <sstream>
 #include <regex>
 
-std::istream& operator>>(std::istream& str, GroundThruth& data)
+std::istream& GroundTruth::operator>>(std::istream& str, GroundTruth& data)
 {
     std::string line;
     std::string sname;

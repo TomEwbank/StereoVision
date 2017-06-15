@@ -58,6 +58,11 @@ class PerformanceEvaluator {
     float sigmaYError;
     float sigmaZError;
 
+
+    std::vector<float> relDistErrorMeans;
+    float meanRelDistError;
+    float sigmaRelDistError;
+
 public:
     PerformanceEvaluator(Mat rawDepth, Mat disparities, std::vector<Point> consideredDisparities, Mat camMatrix,
                              Mat distortion, Mat perspTransform, Mat rotation, Vec3d translation, int xOffset, int yOffset);
