@@ -1,3 +1,4 @@
+#include <unordered_set>
 #include "opencv2/opencv.hpp"
 
 //#include <boost/accumulators/accumulators.hpp>
@@ -12,14 +13,31 @@ using namespace cv;
 
 int main(int, char**)
 {
-    FileStorage fsRawDepth;
-    fsRawDepth.open("rawDepth_kinect_error_test_2.yml", FileStorage::READ);
-    Mat rawDepth;
-    fsRawDepth["rawDepth"] >> rawDepth;
+    cv::Point p1(1,2);
+    cv::Point p2(3,4);
+    cv::Point p3(3,4);
 
-    double depthValue = (double) rawDepth.at<int>(Point(301,274));
-    double z = (1.0 / (depthValue * -0.0030711016 + 3.3309495161));
-    cout << z << endl;
+    if(p1 != p2)
+        cout << "ok" << endl;
+    if(p3 == p2)
+        cout << "ok" << endl;
+
+//    std::unordered_set<Point> set;
+//    set.insert(p1);
+//    set.insert(p2);
+//    set.insert(p3);
+//    std::cout << "set contains:";
+//    for (const cv::Point& x: set) std::cout << " " << x;
+//    std::cout << std::endl;
+
+//    FileStorage fsRawDepth;
+//    fsRawDepth.open("rawDepth_kinect_error_test_2.yml", FileStorage::READ);
+//    Mat rawDepth;
+//    fsRawDepth["rawDepth"] >> rawDepth;
+//
+//    double depthValue = (double) rawDepth.at<int>(Point(301,274));
+//    double z = (1.0 / (depthValue * -0.0030711016 + 3.3309495161));
+//    cout << z << endl;
 
 
 //    std::vector<float> distErrorMeans;

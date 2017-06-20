@@ -2,7 +2,9 @@
 // Created by dallas on 14.06.17.
 //
 
+#include <unordered_set>
 #include "BallGroundTruth.h"
+#include <unordered_set>
 
 std::istream& BallGroundTruth::operator<<(std::istream& str)
 {
@@ -93,6 +95,52 @@ void BallGroundTruth::computeBallPixels() {
             }
         }
     }
+}
+
+double BallGroundTruth::getDepth() {
+    return depth;
+}
+
+double BallGroundTruth::getDepthError(cv::Mat_<float> disparityMap,
+                               std::vector<cv::Point> validDisparities,
+                               cv::Rect roi,
+                               cv::Mat perspTransform) {
+
+//    // TODO Convert vector to set to check in constant time if a disparity exists for a particular pixel
+//    std::unordered_set<cv::Point> validDispSet(validDisparities.begin(), validDisparities.end());
+
+    std::vector<cv::Vec3d> vIn;
+    std::vector<cv::Vec3d> vOut;
+    for (std::list<cv::Point2i>::iterator it = ballPixels.begin(); it != ballPixels.end(); ++it) {
+
+        cv::Point realCoord;
+        cv::Point coordInROI;
+        bool pixelHasDisparity = false;
+        for (const cv::Point& p: validDisparities) {
+            coordInROI = p;
+            realCoord.x = coordInROI.x+roi.x;
+            realCoord.y = coordInROI.y+roi.y;
+            if (realCoord == *it) {
+                pixelHasDisparity =  true;
+                break;
+            }
+        }
+
+        if (pixelHasDisparity) {
+            cv::Vec3d p(realCoord.x, realCoord.y, disparityMap.at<float>(coordInROI));
+            vIn.push_back(p);
+        }
+    }
+    cv::perspectiveTransform(vIn, vOut, perspTransform);
+
+    double closestZ = -1;
+    for (const cv::Vec3d& p: vOut) {
+        double z = p.val[2];
+        if (closestZ < 0 || z < closestZ)
+            closestZ = z;
+    }
+
+    return closestZ-depth;
 }
 
 

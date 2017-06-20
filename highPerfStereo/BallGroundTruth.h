@@ -18,7 +18,7 @@ private:
     int width;
     int height;
 
-    // Depth at wich the ball is located
+    // Depth at which the ball is located
     double depth;
 
     // Ball parameters
@@ -35,9 +35,13 @@ public:
 
     std::istream& operator<<(std::istream& str);
 
-    cv::Point2d getCoordInROI(cv::Rect roi) {
-        return cv::Point2d(x-roi.x, y-roi.y);
-    }
+    double getDepth();
+
+    double getDepthError(cv::Mat_<float> disparityMap,
+                         std::vector<cv::Point> validDisparities,
+                         cv::Rect roi,
+                         cv::Mat perspTransform);
+
 
 };
 

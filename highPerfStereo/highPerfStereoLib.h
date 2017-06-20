@@ -162,31 +162,31 @@ struct MeshTriangle
     }
 };
 
-namespace std {
-
-    template <>
-    struct hash<MeshTriangle>
-    {
-        std::size_t operator()(const MeshTriangle& k) const
-        {
-            using std::size_t;
-            using std::hash;
-            using std::string;
-
-            // Compute individual hash values for first,
-            // second and third and combine them using XOR
-            // and bit shifting:
-
-            Point2 b = k.t->getBarycenter();
-            float x = b.x();
-            float y = b.y();
-
-            return ((hash<float>()(x)
-                     ^ (hash<float>()(y) << 1)) >> 1);
-        }
-    };
-
-}
+//namespace std {
+//
+//    template <>
+//    struct hash<MeshTriangle>
+//    {
+//        std::size_t operator()(const MeshTriangle& k) const
+//        {
+//            using std::size_t;
+//            using std::hash;
+//            using std::string;
+//
+//            // Compute individual hash values for first,
+//            // second and third and combine them using XOR
+//            // and bit shifting:
+//
+//            Point2 b = k.t->getBarycenter();
+//            float x = b.x();
+//            float y = b.y();
+//
+//            return ((hash<float>()(x)
+//                     ^ (hash<float>()(y) << 1)) >> 1);
+//        }
+//    };
+//
+//}
 
 
 void line2(Mat& img, const Point& start, const Point& end,
