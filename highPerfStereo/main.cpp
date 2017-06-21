@@ -68,20 +68,20 @@ int main(int argc, char** argv) {
 
         // Misc. parameters
         params.recordFullDisp = false;
-        params.showImages = false;
+        params.showImages = true;
         params.colorMapSliding = 60;
 
 
-        String folderName = "kinect_test_imgs/"; //"test_imgs/";
-        String pairName = "groundtruth";//"1_500_02";
-        String imNumber = "6";
-        String leftFile = folderName + "left_" + pairName + "_" + imNumber + "_rectified.ppm";
-        String rightFile = folderName + "right_" + pairName + "_" + imNumber + "_rectified.ppm";
-        String calibFile = folderName+ "stereoCalib_1305.yml";//"stereoMatlabCalib.yml";
-        String kinectCalibFile = folderName + "kinectCalib_1305_rotsupp.yml";
-        bool kinectTransformToCorrect = true;
-        String rawDepthFile = folderName + "rawDepth_" + pairName + "_" + imNumber + ".yml";
-        String groundTruthFile = folderName + "dist_" + pairName;
+        String folderName = "imgs_rectified/"; //"test_imgs/";
+        String pairName = "1_200_ball_grassfloor_light";//"1_500_02";
+        String imNumber = "1";
+        String leftFile = folderName + "left_" + pairName + "_" + imNumber + "_rectified.png";
+        String rightFile = folderName + "right_" + pairName + "_" + imNumber + "_rectified.png";
+        String calibFile = folderName+ "stereoCalib_combinedCams_2305.yml";
+//        String kinectCalibFile = folderName + "kinectCalib_1305_rotsupp.yml";
+//        bool kinectTransformToCorrect = true;
+//        String rawDepthFile = folderName + "rawDepth_" + pairName + "_" + imNumber + ".yml";
+//        String groundTruthFile = folderName + "dist_" + pairName;
 
         std::vector<double> timeProfile;
         ptime lastTime;
@@ -109,9 +109,6 @@ int main(int argc, char** argv) {
         elapsed = (microsec_clock::local_time() - lastTime);
         cout << "Time elapsed: " << elapsed.total_microseconds()/1.0e6 << endl << "Fps: " << 1/(elapsed.total_microseconds()/1.0e6) << endl;
 
-        namedWindow("test");
-        imshow("test", leftImg);
-        waitKey(0);
 
 /*------------------------------------------------------------------------------------*/
 
@@ -158,73 +155,73 @@ int main(int argc, char** argv) {
 
 /* -----------------------------------------------------------------------------------*/
 
-        // Stereo VS Kinect, error calculation
-
-        FileStorage fsKinect;
-        fsKinect.open(kinectCalibFile, FileStorage::READ);
-        Mat kinectCamMatrix;
-        fsKinect["K2"] >> kinectCamMatrix;
-        Mat kinectDistortion;
-        fsKinect["D2"] >> kinectDistortion;
-        Mat R;
-        fsKinect["R"] >> R;
-        Vec3d T;
-        fsKinect["T"] >> T;
-
-        cout << "R = " << R << endl;
-        cout << "T = " << T << endl;
-
-
-        // If manual correction needs to be applied,
-        // create new R & T that are composed of the original and an additional transformation
-        if (kinectTransformToCorrect) {
-            // Get the transformation correction to apply
-            Mat Rsupp;
-            fsKinect["Rsupp"] >> Rsupp;
-            Vec3d Tsupp;
-            fsKinect["Tsupp"] >> Tsupp;
-
-            cout << "Rsupp = " << Rsupp << endl;
-            cout << "Tsupp = " << Tsupp << endl;
-
-            Mat_<double> originalTransform(4,4,0.0);
-            R.copyTo(originalTransform(cv::Rect(0,0,3,3)));
-            originalTransform.at<double>(Point(3,0)) = (double) T.val[0];
-            originalTransform.at<double>(Point(3,1)) = (double) T.val[1];
-            originalTransform.at<double>(Point(3,2)) = (double) T.val[2];
-            originalTransform.at<double>(Point(3,3)) = 1.0;
-
-            cout << "orginal = " << originalTransform << endl;
-
-            Mat_<double> additionalTransform(4,4,0.0);
-            Rsupp.copyTo(additionalTransform(cv::Rect(0,0,3,3)));
-            additionalTransform.at<double>(Point(3,0)) = (double) Tsupp.val[0];
-            additionalTransform.at<double>(Point(3,1)) = (double) Tsupp.val[1];
-            additionalTransform.at<double>(Point(3,2)) = (double) Tsupp.val[2];
-            additionalTransform.at<double>(Point(3,3)) = 1.0;
-
-            cout << "addi = " << additionalTransform << endl;
-
-            Mat_<double> composedTransform = originalTransform*additionalTransform;
-
-            cout << "composed = " << composedTransform << endl;
-
-            composedTransform(cv::Rect(0,0,3,3)).copyTo(R);
-            T.val[0] = composedTransform.at<double>(Point(3,0));
-            T.val[1] = composedTransform.at<double>(Point(3,1));
-            T.val[2] = composedTransform.at<double>(Point(3,2));
-        }
-
-        cout << "R = " << R << endl;
-        cout << "T = " << T << endl;
-
-        FileStorage fsRawDepth;
-        fsRawDepth.open(rawDepthFile, FileStorage::READ);
-        Mat rawDepth;
-        fsRawDepth["rawDepth"] >> rawDepth;
-
-        PerformanceEvaluator evaluator(rawDepth, finalDisp, highGradPoints, kinectCamMatrix, kinectDistortion, Q, R, T,
-                                       commonROI.x, commonROI.y);
+//        // Stereo VS Kinect, error calculation
+//
+//        FileStorage fsKinect;
+//        fsKinect.open(kinectCalibFile, FileStorage::READ);
+//        Mat kinectCamMatrix;
+//        fsKinect["K2"] >> kinectCamMatrix;
+//        Mat kinectDistortion;
+//        fsKinect["D2"] >> kinectDistortion;
+//        Mat R;
+//        fsKinect["R"] >> R;
+//        Vec3d T;
+//        fsKinect["T"] >> T;
+//
+//        cout << "R = " << R << endl;
+//        cout << "T = " << T << endl;
+//
+//
+//        // If manual correction needs to be applied,
+//        // create new R & T that are composed of the original and an additional transformation
+//        if (kinectTransformToCorrect) {
+//            // Get the transformation correction to apply
+//            Mat Rsupp;
+//            fsKinect["Rsupp"] >> Rsupp;
+//            Vec3d Tsupp;
+//            fsKinect["Tsupp"] >> Tsupp;
+//
+//            cout << "Rsupp = " << Rsupp << endl;
+//            cout << "Tsupp = " << Tsupp << endl;
+//
+//            Mat_<double> originalTransform(4,4,0.0);
+//            R.copyTo(originalTransform(cv::Rect(0,0,3,3)));
+//            originalTransform.at<double>(Point(3,0)) = (double) T.val[0];
+//            originalTransform.at<double>(Point(3,1)) = (double) T.val[1];
+//            originalTransform.at<double>(Point(3,2)) = (double) T.val[2];
+//            originalTransform.at<double>(Point(3,3)) = 1.0;
+//
+//            cout << "orginal = " << originalTransform << endl;
+//
+//            Mat_<double> additionalTransform(4,4,0.0);
+//            Rsupp.copyTo(additionalTransform(cv::Rect(0,0,3,3)));
+//            additionalTransform.at<double>(Point(3,0)) = (double) Tsupp.val[0];
+//            additionalTransform.at<double>(Point(3,1)) = (double) Tsupp.val[1];
+//            additionalTransform.at<double>(Point(3,2)) = (double) Tsupp.val[2];
+//            additionalTransform.at<double>(Point(3,3)) = 1.0;
+//
+//            cout << "addi = " << additionalTransform << endl;
+//
+//            Mat_<double> composedTransform = originalTransform*additionalTransform;
+//
+//            cout << "composed = " << composedTransform << endl;
+//
+//            composedTransform(cv::Rect(0,0,3,3)).copyTo(R);
+//            T.val[0] = composedTransform.at<double>(Point(3,0));
+//            T.val[1] = composedTransform.at<double>(Point(3,1));
+//            T.val[2] = composedTransform.at<double>(Point(3,2));
+//        }
+//
+//        cout << "R = " << R << endl;
+//        cout << "T = " << T << endl;
+//
+//        FileStorage fsRawDepth;
+//        fsRawDepth.open(rawDepthFile, FileStorage::READ);
+//        Mat rawDepth;
+//        fsRawDepth["rawDepth"] >> rawDepth;
+//
+//        PerformanceEvaluator evaluator(rawDepth, finalDisp, highGradPoints, kinectCamMatrix, kinectDistortion, Q, R, T,
+//                                       commonROI.x, commonROI.y);
 
         return 0;
     }

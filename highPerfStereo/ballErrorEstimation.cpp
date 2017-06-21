@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
 
         // Stereo matching parameters
         params.uniqueness = 0.5;
-        params.maxDisp = 70;
+        params.maxDisp = 100;
         params.leftRightStep = 1;
         params.costAggrWindowSize = 11;
         params.gradThreshold = 70;//25; // [0,255], disparity will be computed only for points with a higher absolute gradient
@@ -60,11 +60,13 @@ int main(int argc, char** argv) {
 
         // Misc. parameters
         params.recordFullDisp = false;
-        params.showImages = false;
+        params.showImages = true;
         params.colorMapSliding = 60;
 
         // Generate groundTruth data
-        String groundTruthFile = "???";
+        String folderName = "imgs_rectified/";
+        String serie = "ball_grassfloor_light";
+        String groundTruthFile = folderName+"ROI_"+serie+".txt";
         ifstream readFile(groundTruthFile);
         vector<BallGroundTruth> groundTruthVec;
         BallGroundTruth data;
@@ -72,9 +74,8 @@ int main(int argc, char** argv) {
             groundTruthVec.push_back(data);
         }
 
-        String folderName = "kinect_test_imgs/"; //"test_imgs/";
-        String pairName = "groundtruth";//"1_500_02";
-        String calibFile = folderName+ "stereoCalib_1305.yml";//"stereoMatlabCalib.yml";
+        String pairName = "1_200_"+serie;
+        String calibFile = folderName+ "stereoCalib_combinedCams_2305.yml";
 
         ofstream outputFile("ballErrors_"+pairName+".txt");
 
@@ -90,8 +91,8 @@ int main(int argc, char** argv) {
         for(BallGroundTruth& groundTruth: groundTruthVec) {
 
             String imNumber = std::to_string(iteration);
-            String leftFile = folderName + "left_" + pairName + "_" + imNumber + "_rectified.ppm";
-            String rightFile = folderName + "right_" + pairName + "_" + imNumber + "_rectified.ppm";
+            String leftFile = folderName + "left_" + pairName + "_" + imNumber + "_rectified.png";
+            String rightFile = folderName + "right_" + pairName + "_" + imNumber + "_rectified.png";
 
             std::vector<double> timeProfile;
             ptime lastTime;

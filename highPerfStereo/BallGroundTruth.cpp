@@ -32,7 +32,9 @@ std::istream& BallGroundTruth::operator<<(std::istream& str)
             if (this->width != this->height)
                 std::cout << "Warning: Ball ROI not square!" << std::endl;
 
-            double depth = std::stod(sdist)*10;
+            double depth = (std::stod(sdist)- 0.038)*1000;
+            // 0.038 is the approximate length between the reference of
+            // the laser measure and the plane of the camera sensor
 
             this->radius = this->width/2;
             this->cx = this->x+this->radius;
