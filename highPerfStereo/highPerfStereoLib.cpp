@@ -527,6 +527,7 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         }
 
 
+        // TODO interpolate disparities for high grad points only, even if no showing images
         // Disparity interpolation
         if (showImages || recordFullDisp) {
             // interpolate on the complete image to be able to display the dense disparity map, or record it

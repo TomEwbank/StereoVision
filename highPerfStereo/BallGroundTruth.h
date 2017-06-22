@@ -40,7 +40,7 @@ public:
     double getDepthError(cv::Mat_<float> disparityMap,
                          std::vector<cv::Point> validDisparities,
                          cv::Rect roi,
-                         cv::Mat perspTransform);
+                         cv::Mat_<float> perspTransform);
 
 
 };

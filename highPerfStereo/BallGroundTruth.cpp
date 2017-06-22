@@ -32,7 +32,7 @@ std::istream& BallGroundTruth::operator<<(std::istream& str)
             if (this->width != this->height)
                 std::cout << "Warning: Ball ROI not square!" << std::endl;
 
-            double depth = (std::stod(sdist)- 0.038)*1000;
+            this->depth = (std::stod(sdist)- 0.038)*1000;
             // 0.038 is the approximate length between the reference of
             // the laser measure and the plane of the camera sensor
 
@@ -55,17 +55,17 @@ std::istream& BallGroundTruth::operator<<(std::istream& str)
 
 void BallGroundTruth::computeBallPixels() {
     double radiusSquared = radius*radius;
-    for (int x = 0; x < width; x++)
+    for (int i = x; i < x+width; ++i)
     {
-        for (int y = 0; y < height; y++)
+        for (int j = y; j < y+height; ++j)
         {
-            int dx = x - cx;
-            int dy = y - cy;
+            int dx = i - cx;
+            int dy = j - cy;
             double distanceSquared = dx * dx + dy * dy;
 
             if (distanceSquared <= radiusSquared)
             {
-                ballPixels.push_back(cv::Point2i(x,y));
+                ballPixels.push_back(cv::Point2i(i,j));
                 continue;
             }
 
@@ -74,7 +74,7 @@ void BallGroundTruth::computeBallPixels() {
 
             if (distanceSquared <= radiusSquared)
             {
-                ballPixels.push_back(cv::Point2i(x,y));
+                ballPixels.push_back(cv::Point2i(i,j));
                 continue;
             }
 
@@ -83,7 +83,7 @@ void BallGroundTruth::computeBallPixels() {
 
             if (distanceSquared <= radiusSquared)
             {
-                ballPixels.push_back(cv::Point2i(x,y));
+                ballPixels.push_back(cv::Point2i(i,j));
                 continue;
             }
 
@@ -92,7 +92,7 @@ void BallGroundTruth::computeBallPixels() {
 
             if (distanceSquared <= radiusSquared)
             {
-                ballPixels.push_back(cv::Point2i(x,y));
+                ballPixels.push_back(cv::Point2i(i,j));
                 continue;
             }
         }
@@ -104,9 +104,9 @@ double BallGroundTruth::getDepth() {
 }
 
 double BallGroundTruth::getDepthError(cv::Mat_<float> disparityMap,
-                               std::vector<cv::Point> validDisparities,
-                               cv::Rect roi,
-                               cv::Mat perspTransform) {
+                                      std::vector<cv::Point> validDisparities,
+                                      cv::Rect roi,
+                                      cv::Mat_<float> perspTransform) {
 
 //    // TODO Convert vector to set to check in constant time if a disparity exists for a particular pixel
 //    std::unordered_set<cv::Point> validDispSet(validDisparities.begin(), validDisparities.end());
@@ -133,6 +133,8 @@ double BallGroundTruth::getDepthError(cv::Mat_<float> disparityMap,
             vIn.push_back(p);
         }
     }
+//    std::vector<cv::Vec3d> vOut(vIn.size());
+    std::cout << ballPixels.size() << " ---- " << vIn.size() << " ---- " << vOut.size() << std::endl;
     cv::perspectiveTransform(vIn, vOut, perspTransform);
 
     double closestZ = -1;

@@ -99,10 +99,9 @@ int main(int argc, char** argv) {
             time_duration elapsed;
 
             // Read input images
-            cv::Mat_<unsigned char> leftImg, rightImg, colorLeftImg;
+            cv::Mat_<unsigned char> leftImg, rightImg;
             leftImg = imread(leftFile, CV_LOAD_IMAGE_GRAYSCALE);
             rightImg = imread(rightFile, CV_LOAD_IMAGE_GRAYSCALE);
-            colorLeftImg = imread(leftFile, CV_LOAD_IMAGE_COLOR);
 
             Mat_<float> finalDisp(commonROI.height, commonROI.width, (float) 0);
             vector<Point> highGradPoints;
@@ -112,6 +111,11 @@ int main(int argc, char** argv) {
 
             // Compute disparities
             highPerfStereo(leftImg(commonROI), rightImg(commonROI), params, finalDisp, highGradPoints);
+
+            cv::Mat dst = finalDisp / params.maxDisp;
+            namedWindow("disparity map");
+            imshow("disparity map", dst);
+            waitKey();
 
             // Compute error with ball groundTruth
             double trueDepth = groundTruth.getDepth();
