@@ -17,6 +17,7 @@ vector< vector< Point2f > > left_img_points, right_img_points;
 
 Mat img1, img2, gray1, gray2;
 
+
 void load_image_points(int board_width, int board_height, float square_size, bool showChessboard,
                        char* left_imgs_dir, char* right_imgs_dir) {
 
@@ -36,19 +37,56 @@ void load_image_points(int board_width, int board_height, float square_size, boo
                 cout << left_img << endl;
                 char right_img[100];
                 sprintf(right_img, "%s/%s", right_imgs_dir, ent->d_name);
-                right_img[strlen(right_imgs_dir)+7] = '1';
+                right_img[strlen(right_imgs_dir)+7] = '2';
                 cout << right_img << endl;
 
 
                 img1 = imread(left_img, CV_LOAD_IMAGE_COLOR);
+
+//                namedWindow("Gradient left");
+//                imshow("Gradient left", img1);
+//                waitKey(0);
+
                 img2 = imread(right_img, CV_LOAD_IMAGE_COLOR);
+
+//                img2 = equalizeIntensity(img2);
+//                img1 = equalizeIntensity(img1);
+
+//                namedWindow("Gradient left2");
+//                imshow("Gradient left2", img2);
+//                waitKey(0);
+
                 cvtColor(img1, gray1, CV_BGR2GRAY);
                 cvtColor(img2, gray2, CV_BGR2GRAY);
 
-                bool found1 = cv::findChessboardCorners(img1, board_size, corners1,
-                                                        CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
-                bool found2 = cv::findChessboardCorners(img2, board_size, corners2,
-                                                        CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
+
+//                cv::GaussianBlur(gray1, gray2, cv::Size(0, 0), 11);
+//                cv::addWeighted(gray1, 1.5, gray1, -1, 0, gray1);
+//                cv::addWeighted(gray2, 1.5, gray2, -1, 0, gray2);
+
+//                equalizeHist(gray1,gray1);
+//                equalizeHist(gray2, gray2);
+//
+//                // Threshold to convert image into binary (B&amp;W)
+//                threshold( gray1,     // source image
+//                             gray1,       // destination image
+//                             150,          // threhold val.
+//                             255,          // max. val
+//                             CV_THRESH_BINARY ); // binary type );
+//
+//                // Threshold to convert image into binary (B&amp;W)
+//                threshold( gray2,     // source image
+//                             gray2,       // destination image
+//                             150,          // threhold val.
+//                             255,          // max. val
+//                             CV_THRESH_BINARY ); // binary type );
+//                namedWindow("test");
+//                imshow("test",img2);
+//                waitKey(0);
+
+
+                bool found1 = cv::findChessboardCorners(img1, board_size, corners1, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
+                bool found2 = cv::findChessboardCorners(img2, board_size, corners2, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
 
 
                 vector<Point3f> obj;
@@ -66,16 +104,16 @@ void load_image_points(int board_width, int board_height, float square_size, boo
 
                         cv::cornerSubPix(gray1, corners1, cv::Size(5, 5), cv::Size(-1, -1),
                                          cv::TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
-                        cv::drawChessboardCorners(gray1, board_size, corners1, found1);
+                        cv::drawChessboardCorners(img1, board_size, corners1, found1);
                         namedWindow("left");
-                        imshow("left", gray1);
+                        imshow("left", img1);
                         waitKey();
 
                         cv::cornerSubPix(gray2, corners2, cv::Size(5, 5), cv::Size(-1, -1),
                                          cv::TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
-                        cv::drawChessboardCorners(gray2, board_size, corners2, found2);
+                        cv::drawChessboardCorners(img2, board_size, corners2, found2);
                         namedWindow("right");
-                        imshow("right", gray2);
+                        imshow("right", img2);
                         waitKey();
 
                     }
@@ -127,12 +165,12 @@ double computeReprojectionErrors(const vector< vector< Point3f > >& objectPoints
 int main(int argc, char const *argv[])
 {
     char leftimg_dir[100];
-    sprintf(leftimg_dir, "calib_imgs/left2");
+    sprintf(leftimg_dir, "calib_imgs/left3");
     char rightimg_dir[100];
-    sprintf(rightimg_dir, "calib_imgs/right2");
-    int board_width = 17;
-    int board_height = 11;
-    float square_size = 0.015495;
+    sprintf(rightimg_dir, "calib_imgs/right3");
+    int board_width = 19;
+    int board_height = 13;
+    float square_size = 15.495;
     string out_file = "stereoCalib.yml";
     bool showChessboard = false;
 

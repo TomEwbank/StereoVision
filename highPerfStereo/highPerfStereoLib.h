@@ -223,7 +223,6 @@ void supportResampling(Fade_2D &mesh,
 
 void highPerfStereo(cv::Mat_<unsigned char> leftImg,
                     cv::Mat_<unsigned char> rightImg,
-                    Rect ROI,
                     StereoParameters parameters,
                     Mat_<float> &disparityMap,
                     vector<Point> &computedPoints);

@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
         String imNumber = "1";
         String leftFile = folderName + "left_" + pairName + "_" + imNumber + "_rectified.png";
         String rightFile = folderName + "right_" + pairName + "_" + imNumber + "_rectified.png";
-        String calibFile = folderName+ "stereoCalib_combinedCams_2305.yml";
+        String calibFile = folderName+ "stereoCalib_2305_rotx008_invTOnly.yml";
 //        String kinectCalibFile = folderName + "kinectCalib_1305_rotsupp.yml";
 //        bool kinectTransformToCorrect = true;
 //        String rawDepthFile = folderName + "rawDepth_" + pairName + "_" + imNumber + ".yml";

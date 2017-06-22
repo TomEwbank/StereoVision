@@ -176,7 +176,6 @@ void supportResampling(Fade_2D &mesh,
 
 void highPerfStereo(cv::Mat_<unsigned char> leftImg,
                     cv::Mat_<unsigned char> rightImg,
-                    Rect ROI,
                     StereoParameters parameters,
                     Mat_<float> &disparityMap,
                     vector<Point> &highGradPoints) {
@@ -233,8 +232,8 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
 
 
     // TODO check that it does not modify the original image outside the fnction
-    leftImg = leftImg(ROI).clone();
-    rightImg = rightImg(ROI).clone();
+    leftImg = leftImg.clone();
+    rightImg = rightImg.clone();
 
     // TODO deal with resize parameter
 //    cv::Mat_<unsigned char> leftImg, rightImg;

@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
         }
 
         String pairName = "1_200_"+serie;
-        String calibFile = folderName+ "stereoCalib_combinedCams_2305.yml";
+        String calibFile = folderName+ "stereoCalib_2305_rotx008_invTOnly.yml";
 
         ofstream outputFile("ballErrors_"+pairName+".txt");
 
@@ -104,14 +104,14 @@ int main(int argc, char** argv) {
             rightImg = imread(rightFile, CV_LOAD_IMAGE_GRAYSCALE);
             colorLeftImg = imread(leftFile, CV_LOAD_IMAGE_COLOR);
 
-            Mat_<float> finalDisp(leftImg.rows, leftImg.cols, (float) 0);
+            Mat_<float> finalDisp(commonROI.height, commonROI.width, (float) 0);
             vector<Point> highGradPoints;
 
             if (leftImg.data == NULL || rightImg.data == NULL)
                 throw sparsestereo::Exception("Unable to open input images!");
 
             // Compute disparities
-            highPerfStereo(leftImg, rightImg, commonROI, params, finalDisp, highGradPoints);
+            highPerfStereo(leftImg(commonROI), rightImg(commonROI), params, finalDisp, highGradPoints);
 
             // Compute error with ball groundTruth
             double trueDepth = groundTruth.getDepth();

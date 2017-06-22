@@ -15,15 +15,16 @@ int main(int argc, char const *argv[])
 {
     String inputFolder = "imgs_to_rectify/";
     String outputFolder = "imgs_rectified/";
-    String calibFile = inputFolder+"stereoCalib_combinedCams_2305.yml";
+    String calibFile = inputFolder+"stereoCalib_2305_rotx008_invTOnly.yml";
     String pairName = "1_200_ball_grassfloor_light";
     String imageExtension = ".ppm";
 
     int imHeight = 460;
     int imWidth = 800;
-    double sizeFactor = 1.1;
+//    double sizeFactor = 1;
     Size size(imWidth, imHeight);
-    Size newSize(imWidth*sizeFactor,imHeight*sizeFactor);
+//    Size newSize(imWidth*sizeFactor,imHeight*sizeFactor);
+    Size newSize(1037,631);
     int imgsNumber = 30;
 
     Mat K1, K2;
@@ -40,6 +41,13 @@ int main(int argc, char const *argv[])
     fs["D2"] >> D2;
     fs["R"] >> R;
     fs["T"] >> T;
+    
+//    Mat Q,P1,R1,P2,R2;
+//    fs["Q"] >> Q;
+//    fs["R1"] >> R1;
+//    fs["R2"] >> R2;
+//    fs["P1"] >> P1;
+//    fs["P2"] >> P2;
 
     fs.release();
 
