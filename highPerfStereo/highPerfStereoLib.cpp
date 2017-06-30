@@ -4,8 +4,11 @@
 #include "highPerfStereoLib.h"
 
 
+float getInterpolatedDisparity(Fade_2D &dt, unordered_map<MeshTriangle, Plane> &planeTable, Mat_<float> disparities, int x,
+                               int y);
+
 void line2(Mat& img, const Point& start, const Point& end,
-           const Scalar& c1,   const Scalar& c2) {
+           const Scalar& c1, const Scalar& c2) {
     LineIterator iter(img, start, end, 8);
 
     for (int i = 0; i < iter.count; i++, iter++) {
@@ -430,7 +433,7 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
     }
 
 
-    // Create the triangulation mesh & the color disparity map
+    // Create the triangulation mesh
     Fade_2D dt;
     Mat_<float> disparities(leftImg.rows, leftImg.cols, (float) 0); // Holds the temporary disparities
     for(int i=0; i<(int)correspondences.size(); i++) {
@@ -534,22 +537,9 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
             for (int j = 0; j < disparities.rows; ++j) {
                 float *pixel = disparities.ptr<float>(j);
                 for (int i = 0; i < disparities.cols; ++i) {
-                    Point2 pointInPlaneFade = Point2(i,j);
-                    Triangle2 *t = dt.locate(pointInPlaneFade);
-                    MeshTriangle mt = {t};
-
-                    if (t != NULL) {
-                        unordered_map<MeshTriangle, Plane>::const_iterator got = planeTable.find(mt);
-                        Plane plane;
-                        if (got == planeTable.end()) {
-                            plane = Plane(t, disparities);
-                            planeTable[mt] = plane;
-                        } else {
-                            plane = got->second;
-                        }
-                        pixel[i] = plane.getDepth(pointInPlaneFade);
-                    }
-
+                    float disparity = getInterpolatedDisparity(dt, planeTable, disparities, i, j);
+                    if(disparity >= 0)
+                        pixel[i] = disparity;
                 }
             }
 
@@ -567,6 +557,17 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
                 Mat temp = dst * 255;
                 temp.convertTo(outputImg, CV_8UC1);
                 imwrite("disparity" + to_string(iter) + ".png", outputImg);
+            }
+        } else {
+            // No need to show dense disparity map -> interpolate disparities for high gradient points only
+            for(Point &p : highGradPoints) {
+                int i = p.x;
+                int j = p.y;
+                float disparity = getInterpolatedDisparity(dt, planeTable, disparities, i, j);
+                if(disparity >= 0) {
+                    float *pixel = disparities.ptr<float>(j);
+                    pixel[i] = disparity;
+                }
             }
         }
 
@@ -616,6 +617,7 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         if (iter != nIters) {
 
             // Support resampling
+            cout << "bitch" << endl;
             supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, disparities, tLow, tHigh, maxDisp);
             occGridSize = max((unsigned int) 1, occGridSize / 2);
         }
@@ -641,6 +643,40 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
     delete rightFeatureDetector;
     if(rectification != NULL)
         delete rectification;
+
+}
+
+float getInterpolatedDisparity(Fade_2D &dt,
+                               unordered_map<MeshTriangle, Plane> &planeTable,
+                               Mat_<float> disparities,
+                               int x, int y) {
+
+    // Express the point for use with the Fade library
+    Point2 pointInPlaneFade = Point2(x,y);
+
+    // Find the triangle to which the point belong
+    Triangle2 *t = dt.locate(pointInPlaneFade);
+    MeshTriangle mt = {t};
+
+    if (t != NULL) {
+        // Look for the triangle in the lookup table
+        unordered_map<MeshTriangle, Plane>::const_iterator got = planeTable.find(mt);
+        Plane plane;
+
+        if (got == planeTable.end()) {
+            // If the triangle is not yet in the lookup table,
+            // create a Plane object add it to the table
+            plane = Plane(t, disparities);
+            planeTable[mt] = plane;
+        } else {
+            // If the triangle is already in the lookup table, get the corresponding Plane object
+            plane = got->second;
+        }
+        // Set the disparity value, obtained from the Plane object at the considered point
+        return plane.getDepth(pointInPlaneFade);
+    } else {
+        return -1;
+    }
 
 }
 

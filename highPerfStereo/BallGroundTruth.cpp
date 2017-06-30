@@ -145,6 +145,15 @@ double BallGroundTruth::getDepthError(cv::Mat_<float> disparityMap,
     }
 
     return closestZ-depth;
+
+//    double zSum = 0;
+//    for (const cv::Vec3d& p: vOut) {
+//        zSum = zSum + p.val[2];
+//    }
+//
+//    double meanZ = zSum/vOut.size();
+//
+//    return meanZ-depth;
 }
 
 

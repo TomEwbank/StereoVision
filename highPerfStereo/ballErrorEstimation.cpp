@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
         }
 
         String pairName = "1_200_"+serie;
-        String calibFile = folderName+ "stereoCalib_2305_rotx008_invTOnly.yml";
+        String calibFile = folderName+ "stereoCalib_2305_rotx008_nothingInv.yml";
 
         ofstream outputFile("ballErrors_"+pairName+".txt");
 
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
         Mat Q;
         fs["Q"] >> Q;
 
-        int iteration = 1;
+        int iteration = 2;
 
         for(BallGroundTruth& groundTruth: groundTruthVec) {
 
@@ -111,6 +111,21 @@ int main(int argc, char** argv) {
 
             // Compute disparities
             highPerfStereo(leftImg(commonROI), rightImg(commonROI), params, finalDisp, highGradPoints);
+
+
+            Mat_<float> finalDisp2(commonROI.height, commonROI.width, (float) 0);
+            vector<Point> highGradPoints2;
+            params.showImages = false;
+            highPerfStereo(leftImg(commonROI), rightImg(commonROI), params, finalDisp2, highGradPoints2);
+
+            for(int x=0; x < finalDisp.cols; ++x) {
+                for(int y=0; y < finalDisp.rows; ++y) {
+                    float d1 = finalDisp.at<float>(Point(x,y));
+                    float d2 = finalDisp2.at<float>(Point(x,y));
+                    if (d1 != d2)
+                        cout << "(" << x << "," << y << ")   " << d1 << " - " << d2 << endl;
+                }
+            }
 
             cv::Mat dst = finalDisp / params.maxDisp;
             namedWindow("disparity map");
