@@ -207,7 +207,7 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
     double resizeFactor = parameters.resizeFactor;
     bool applyBlur = parameters.applyBlur;
     bool applyHistEqualization = parameters.applyHistEqualization;
-    int blurSize = parameters.applyBlur;
+    int blurSize = parameters.blurSize;
 
     // Feature detection parameters
     double adaptivity = parameters.adaptivity;
@@ -271,9 +271,13 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
     // Get the set of high gradient points
     int v = 0;
     Mat highGradMask(grd.rows, grd.cols, CV_8U, Scalar(0));
-    for(int j = 2; j < abs_grd.rows-2; ++j) {
+    // The census window and the laplacian transform are not calculated on a margin all around the image because
+    // of the kernel window size needed to compute these transformations for each pixel.
+    // Thus, the pixels of these margins must not be considered
+    int margin = std::max(2, kernelSize/2); // 2 is the margin deduced from the census window size fixed at 5
+    for(int j = margin; j < abs_grd.rows-margin; ++j) {
         uchar* pixel = abs_grd.ptr(j);
-        for (int i = 2; i < abs_grd.cols-2; ++i) {
+        for (int i = margin; i < abs_grd.cols-margin; ++i) {
             if (pixel[i] > gradThreshold) {
                 highGradPoints.push_back(Point(i, j));
                 highGradMask.at<uchar>(highGradPoints[v]) = (uchar) 200;
@@ -560,7 +564,7 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
             }
         } else {
             // No need to show dense disparity map -> interpolate disparities for high gradient points only
-            for(Point &p : highGradPoints) {
+            for(const Point &p : highGradPoints) {
                 int i = p.x;
                 int j = p.y;
                 float disparity = getInterpolatedDisparity(dt, planeTable, disparities, i, j);
@@ -623,20 +627,20 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         }
     }
 
-    // Add all support points to disparities
-    std::vector<GEOM_FADE2D::Point2 *> vAllPoints;
-    dt.getVertexPointers(vAllPoints);
-
-    for (std::vector<GEOM_FADE2D::Point2 *>::const_iterator it = vAllPoints.begin();
-         it < vAllPoints.end();
-         it++) {
-
-        Point2 *p = *it;
-        Point pixel(p->x(), p->y());
-        int disp = disparities.at<float>(pixel);
-        disparityMap.at<float>(pixel) = disp;
-        highGradPoints.push_back(pixel);
-    }
+//    // Add all support points to disparities
+//    std::vector<GEOM_FADE2D::Point2 *> vAllPoints;
+//    dt.getVertexPointers(vAllPoints);
+//
+//    for (std::vector<GEOM_FADE2D::Point2 *>::const_iterator it = vAllPoints.begin();
+//         it < vAllPoints.end();
+//         it++) {
+//
+//        Point2 *p = *it;
+//        Point pixel(p->x(), p->y());
+//        int disp = disparities.at<float>(pixel);
+//        disparityMap.at<float>(pixel) = disp;
+//        highGradPoints.push_back(pixel);
+//    }
 
     // Clean up
     delete leftFeatureDetector;

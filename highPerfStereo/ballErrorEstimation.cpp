@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
         params.resizeFactor = 1;
         params.applyBlur = true;
         params.applyHistEqualization = true;
-        params.blurSize = 5;
+        params.blurSize = 3;
 
         // Feature detection parameters
         params.adaptivity = 0.25;
@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
 
         // Misc. parameters
         params.recordFullDisp = false;
-        params.showImages = true;
+        params.showImages = false;
         params.colorMapSliding = 60;
 
         // Generate groundTruth data
@@ -86,8 +86,8 @@ int main(int argc, char** argv) {
         Mat Q;
         fs["Q"] >> Q;
 
-        int iteration = 2;
-
+        int iteration = 1;
+        double e = 0;
         for(BallGroundTruth& groundTruth: groundTruthVec) {
 
             String imNumber = std::to_string(iteration);
@@ -113,35 +113,53 @@ int main(int argc, char** argv) {
             highPerfStereo(leftImg(commonROI), rightImg(commonROI), params, finalDisp, highGradPoints);
 
 
-            Mat_<float> finalDisp2(commonROI.height, commonROI.width, (float) 0);
-            vector<Point> highGradPoints2;
-            params.showImages = false;
-            highPerfStereo(leftImg(commonROI), rightImg(commonROI), params, finalDisp2, highGradPoints2);
+//            Mat_<float> finalDisp2(commonROI.height, commonROI.width, (float) 0);
+//            vector<Point> highGradPoints2;
+//            params.showImages = false;
+//            highPerfStereo(leftImg(commonROI), rightImg(commonROI), params, finalDisp2, highGradPoints2);
 
-            for(int x=0; x < finalDisp.cols; ++x) {
-                for(int y=0; y < finalDisp.rows; ++y) {
-                    float d1 = finalDisp.at<float>(Point(x,y));
-                    float d2 = finalDisp2.at<float>(Point(x,y));
-                    if (d1 != d2)
-                        cout << "(" << x << "," << y << ")   " << d1 << " - " << d2 << endl;
-                }
-            }
+//            for(int x=0; x < finalDisp.cols; ++x) {
+//                for(int y=0; y < finalDisp.rows; ++y) {
+//                    float d1 = finalDisp.at<float>(Point(x,y));
+//                    float d2 = finalDisp2.at<float>(Point(x,y));
+//                    if (d1 != d2)
+//                        cout << "(" << x << "," << y << ")   " << d1 << " - " << d2 << endl;
+//                }
+//            }
 
-            cv::Mat dst = finalDisp / params.maxDisp;
-            namedWindow("disparity map");
-            imshow("disparity map", dst);
-            waitKey();
+
+//            if(highGradPoints.size() == highGradPoints2.size()) {
+//                cout << "OK size grd pts" << endl;
+//                for(int i=0; i<highGradPoints.size(); ++i) {
+//                    Point p1 = highGradPoints[i];
+//                    Point p2 = highGradPoints2[i];
+//                    if (p1 != p2) {
+//                        cout << p1 << "////" << p2 << endl;
+//                    }
+//                }
+//            } else {
+//                cout << "grd pts not OK" << endl;
+//                cout << "size 1 = " << highGradPoints.size() << ", size 2 = " << highGradPoints2.size() << endl;
+//            }
+
+
+
+//            cv::Mat dst = finalDisp / params.maxDisp;
+//            namedWindow("disparity map");
+//            imshow("disparity map", dst);
+//            waitKey();
 
             // Compute error with ball groundTruth
             double trueDepth = groundTruth.getDepth();
             double error = groundTruth.getDepthError(finalDisp, highGradPoints, commonROI, Q);
+//            double error2 = groundTruth.getDepthError(finalDisp2, highGradPoints2, commonROI, Q);
 
             cout << "true depth = " << trueDepth << ", error = " << error << endl;
             outputFile << trueDepth << ", " << error << endl;
-
+            e += abs(error);
             ++iteration;
         }
-
+        cout << "mean error = " << e/(iteration-1) << endl;
         outputFile.close();
 
         return 0;
