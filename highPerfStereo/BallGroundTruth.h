@@ -28,6 +28,10 @@ private:
 
     // List of pixels belonging to the ball (circle circumscripted in the ROI)
     std::list<cv::Point2i> ballPixels;
+public:
+    const std::list<cv::Point2i> &getBallPixels() const;
+
+private:
 
     void computeBallPixels();
 

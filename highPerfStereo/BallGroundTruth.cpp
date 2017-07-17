@@ -48,12 +48,14 @@ std::istream& BallGroundTruth::operator<<(std::istream& str)
             // So set the state on the main stream
             // to indicate failure.
             str.setstate(std::ios::failbit);
+            std::cout << "fail to read groundtruth!!!" << std::endl;
         }
     }
     return str;
 }
 
 void BallGroundTruth::computeBallPixels() {
+    ballPixels.clear();
     double radiusSquared = radius*radius;
     for (int i = x; i < x+width; ++i)
     {
@@ -138,12 +140,17 @@ double BallGroundTruth::getDepthError(cv::Mat_<float> disparityMap,
     cv::perspectiveTransform(vIn, vOut, perspTransform);
 
     double closestZ = -1;
+    int index = 0;
+    int closestIndex = 0;
     for (const cv::Vec3d& p: vOut) {
         double z = p.val[2];
-        if (closestZ < 0 || z < closestZ)
+        if (closestZ < 0 || z < closestZ) {
             closestZ = z;
+            closestIndex = index;
+        }
+        ++index;
     }
-
+    std::cout << "closest point: " << vIn[closestIndex] << std::endl;
     return closestZ-depth;
 
 //    double zSum = 0;
@@ -154,6 +161,10 @@ double BallGroundTruth::getDepthError(cv::Mat_<float> disparityMap,
 //    double meanZ = zSum/vOut.size();
 //
 //    return meanZ-depth;
+}
+
+const std::list<cv::Point2i> &BallGroundTruth::getBallPixels() const {
+    return ballPixels;
 }
 
 

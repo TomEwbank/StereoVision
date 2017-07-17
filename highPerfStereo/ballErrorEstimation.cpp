@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
         params.tHigh = 10;
         params.nIters = 1;
         params.resizeFactor = 1;
-        params.applyBlur = true;
+        params.applyBlur = false;
         params.applyHistEqualization = true;
         params.blurSize = 3;
 
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
 
         // Generate groundTruth data
         String folderName = "imgs_rectified/";
-        String serie = "ball_grassfloor_light";
+        String serie = "ball_obstacles";//"ball_grassfloor_light";//
         String groundTruthFile = folderName+"ROI_"+serie+".txt";
         ifstream readFile(groundTruthFile);
         vector<BallGroundTruth> groundTruthVec;
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
         }
 
         String pairName = "1_200_"+serie;
-        String calibFile = folderName+ "stereoCalib_2305_rotx008_nothingInv.yml";
+        String calibFile = folderName+"stereoParams_2806_rotx008.yml"; //"stereoCalib_2305_rotx008_nothingInv.yml";//
 
         ofstream outputFile("ballErrors_"+pairName+".txt");
 
@@ -154,9 +154,20 @@ int main(int argc, char** argv) {
             double error = groundTruth.getDepthError(finalDisp, highGradPoints, commonROI, Q);
 //            double error2 = groundTruth.getDepthError(finalDisp2, highGradPoints2, commonROI, Q);
 
+
+            for (cv::Point2i p : groundTruth.getBallPixels()) {
+//                    cout << p << endl;
+                leftImg.at<uchar>(p) = 0;
+            }
+
+            cout << "ball pix size = " << groundTruth.getBallPixels().size() << endl;
+            namedWindow("ball pix");
+            imshow("ball pix", leftImg);
+            waitKey();
+
             cout << "true depth = " << trueDepth << ", error = " << error << endl;
             outputFile << trueDepth << ", " << error << endl;
-            e += abs(error);
+            e += error;
             ++iteration;
         }
         cout << "mean error = " << e/(iteration-1) << endl;
