@@ -24,6 +24,14 @@ std::istream& BallGroundTruth::operator<<(std::istream& str)
              std::getline(iss, sdist))
         {
             /* OK: All read operations worked */
+
+//            int dilation = 3; // dilate the ROI by 3px
+//
+//            this->x = std::stoi(sx1)-dilation;
+//            this->y = std::stoi(sy1)-dilation;
+//            this->width = std::stoi(sx2)+dilation-this->x;
+//            this->height = std::stof(sy2)+dilation-this->y;
+
             this->x = std::stoi(sx1);
             this->y = std::stoi(sy1);
             this->width = std::stoi(sx2)-this->x;

@@ -15,8 +15,8 @@ int main(int argc, char const *argv[])
 {
     String inputFolder = "imgs_to_rectify/";
     String outputFolder = "imgs_rectified/";
-    String calibFile = inputFolder+"stereoParams_2806_rotx008.yml";//"stereoCalib_2305_rotx008_nothingInv.yml";//"stereoParams_2806_windows_camUntouched.yml";//
-    String pairName = "1_200_ball_obstacles";
+    String calibFile = inputFolder+"stereoParams_2906.yml";//"stereoCalib_2305_rotx008_nothingInv.yml";//"stereoParams_2806_windows_camUntouched.yml";//
+    String pairName = "1_200_floor_inclination";
     String imageExtension = ".ppm";
 
     int imHeight = 460;
@@ -25,7 +25,7 @@ int main(int argc, char const *argv[])
     Size size(imWidth, imHeight);
 //    Size newSize(imWidth*sizeFactor,imHeight*sizeFactor);
     Size newSize(1037,631);
-    int imgsNumber = 18;
+    int imgsNumber = 4;
 
     Mat K1, K2;
     Mat D1, D2;

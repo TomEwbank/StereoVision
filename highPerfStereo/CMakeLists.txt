@@ -6,3 +6,6 @@ target_link_libraries(mainStereo plane linearSystem sparsestereo fade2d ${OpenCV
 
 add_executable(ballErrorEstimation ballErrorEstimation.cpp highPerfStereoLib.cpp BallGroundTruth.cpp BallGroundTruth.h)
 target_link_libraries(ballErrorEstimation plane linearSystem sparsestereo fade2d ${OpenCV_LIBS})
+
+add_executable(planeErrorEstimation planeErrorEstimation.cpp highPerfStereoLib.cpp)
+target_link_libraries(planeErrorEstimation plane linearSystem sparsestereo fade2d ${OpenCV_LIBS} ${MRPT_LIBS})

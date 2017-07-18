@@ -156,7 +156,7 @@ void supportResampling(Fade_2D &mesh,
 
             // sparse epipolar stereo matching for invalid pixels and add them to support points
             InvalidMatch invalid = ps.getInvalidMatch(i,j);
-            if (invalid.cost > tHigh) {
+            if (invalid.cost > tHigh && mesh.locate(Point2(invalid.x,invalid.y)) != NULL) {
                 ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, censusSize, costAggrWindowSize, invalid, maxDisp);
                 if (newSupp.cost<tLow) {
                     disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
@@ -168,7 +168,7 @@ void supportResampling(Fade_2D &mesh,
             // add confident pixels to support points
             ConfidentSupport newSupp = ps.getConfidentSupport(i,j);
             //cout << newSupp.x << " " << newSupp.y << endl;
-            if (newSupp.cost < tLow) {
+            if (newSupp.cost < tLow && mesh.locate(Point2(newSupp.x,newSupp.y)) != NULL) {
                 disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
                 Point2 p(newSupp.x, newSupp.y);
                 mesh.insert(p);
@@ -208,6 +208,7 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
     bool applyBlur = parameters.applyBlur;
     bool applyHistEqualization = parameters.applyHistEqualization;
     int blurSize = parameters.blurSize;
+    int rejectionMargin = parameters.rejectionMargin;
 
     // Feature detection parameters
     double adaptivity = parameters.adaptivity;
@@ -445,10 +446,16 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         float y = correspondences[i].imgLeft->pt.y;
         float d = correspondences[i].disparity();
 
-        disparities.at<float>(Point(x,y)) = d;
+        // Points matched near the border of the image have a tendency to be invalid,
+        // probably due to the distortion from the wide-angle lens that is not so well corrected
+        // => reject these points
+        if (    x >= rejectionMargin && y >= rejectionMargin
+            &&  x < leftImgAltered.cols-rejectionMargin && y < leftImgAltered.rows-rejectionMargin ) {
 
-        Point2 p(x, y);
-        dt.insert(p);
+            disparities.at<float>(Point(x, y)) = d;
+            Point2 p(x, y);
+            dt.insert(p);
+        }
     }
 
     // Init final cost map
@@ -621,7 +628,6 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         if (iter != nIters) {
 
             // Support resampling
-            cout << "bitch" << endl;
             supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, disparities, tLow, tHigh, maxDisp);
             occGridSize = max((unsigned int) 1, occGridSize / 2);
         }

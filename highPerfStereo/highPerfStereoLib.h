@@ -47,6 +47,7 @@ public:
     bool applyBlur;
     bool applyHistEqualization;
     int blurSize;
+    int rejectionMargin;
 
     // Laplace parameters (gradient calculation)
     int kernelSize;
