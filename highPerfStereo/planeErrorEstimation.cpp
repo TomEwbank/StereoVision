@@ -207,8 +207,6 @@ void TestRANSAC()
 
     // Generate pointCloud
     std::vector<Vec3d> vin2;
-    std::vector<Point>::iterator ptsIt;
-    std::vector<Vec3d>::iterator vin2It;
     for (Point coordInROI : highGradPoints) {
 
         if (coordInROI.x > 200 && coordInROI.x < 600 && coordInROI.y > 160 && coordInROI.y < 300) {

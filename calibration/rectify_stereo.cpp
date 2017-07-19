@@ -15,9 +15,9 @@ int main(int argc, char const *argv[])
 {
     String inputFolder = "imgs_to_rectify/";
     String outputFolder = "imgs_rectified/";
-    String calibFile = inputFolder+"stereoParams_2906.yml";//"stereoCalib_2305_rotx008_nothingInv.yml";//"stereoParams_2806_windows_camUntouched.yml";//
-    String pairName = "1_200_floor_inclination";
-    String imageExtension = ".ppm";
+    String calibFile = inputFolder+"stereoParams_2806_windows_camUntouched.yml";//"stereoCalib_2305_rotx008_nothingInv.yml";//"stereoParams_2806_windows_camUntouched.yml";//
+    String pairName = "plane";
+    String imageExtension = ".bmp";
 
     int imHeight = 460;
     int imWidth = 800;
@@ -25,7 +25,7 @@ int main(int argc, char const *argv[])
     Size size(imWidth, imHeight);
 //    Size newSize(imWidth*sizeFactor,imHeight*sizeFactor);
     Size newSize(1037,631);
-    int imgsNumber = 4;
+    int imgsNumber = 20;
 
     Mat K1, K2;
     Mat D1, D2;
