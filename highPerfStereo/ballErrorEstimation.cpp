@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
 
         // Stereo matching parameters
         params.uniqueness = 0.5;
-        params.maxDisp = 100;
+        params.maxDisp = 210;
         params.leftRightStep = 1;
         params.costAggrWindowSize = 11;
         params.gradThreshold = 80; // [0,255], disparity will be computed only for points with a higher absolute gradient
@@ -163,7 +163,7 @@ int main(int argc, char** argv) {
         params.tHigh = 15;
         params.nIters = 1;
         params.resizeFactor = 1;
-        params.applyBlur = true;
+        params.applyBlur = false;
         params.applyHistEqualization = true;
         params.blurSize = 3;
         params.rejectionMargin = 10;
@@ -185,12 +185,12 @@ int main(int argc, char** argv) {
 
         // Misc. parameters
         params.recordFullDisp = false;
-        params.showImages = false;
+        params.showImages = true;
         params.colorMapSliding = 60;
 
         // Generate groundTruth data
         String folderName = "imgs_rectified/";
-        String serie = "ball_obstacles";//"ball_grassfloor_light";//
+        String serie = "ball_woodfloor";//"ball_grassfloor_light";//
         String groundTruthFile = folderName+"ROI_"+serie+".txt";
         ifstream readFile(groundTruthFile);
         vector<BallGroundTruth> groundTruthVec;
@@ -199,8 +199,8 @@ int main(int argc, char** argv) {
             groundTruthVec.push_back(data);
         }
 
-        String pairName = "50_10_"+serie;
-        String calibFile = folderName+"stereoParams_2906.yml"; //"stereoCalib_2305_rotx008_nothingInv.yml";//"stereoParams_2205_rotx008.yml";//
+        String pairName = "1_300_"+serie;
+        String calibFile = folderName+"stereoParams_2205_rotx008.yml";//"stereoParams_2906.yml"; //"stereoCalib_2305_rotx008_nothingInv.yml";//
 
         ofstream outputFile("ballErrors_"+pairName+".txt");
 
@@ -228,17 +228,17 @@ int main(int argc, char** argv) {
             leftImg = imread(leftFile, CV_LOAD_IMAGE_GRAYSCALE);
             rightImg = imread(rightFile, CV_LOAD_IMAGE_GRAYSCALE);
 
-            float gamma = 0.8;
-            cout << "gamma is " << gamma << endl;
-
-            Mat dst;
-            GammaCorrection(leftImg, dst, gamma);
-
-            // Show
-            imshow("src",   leftImg);
-            imshow("dst",   dst);
-
-            waitKey(0);
+//            float gamma = 0.8;
+//            cout << "gamma is " << gamma << endl;
+//
+//            Mat dst;
+//            GammaCorrection(leftImg, dst, gamma);
+//
+//            // Show
+//            imshow("src",   leftImg);
+//            imshow("dst",   dst);
+//
+//            waitKey(0);
 
 
             Mat_<float> finalDisp(commonROI.height, commonROI.width, (float) 0);

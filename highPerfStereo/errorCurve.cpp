@@ -219,8 +219,11 @@ int main(int argc, char** argv) {
             std::vector<Vec3d> vin2;
             for (Point coordInROI : highGradPoints) {
 
-                if (coordInROI.x > upX && coordInROI.x < botX && coordInROI.y > upY && coordInROI.y < botY) {
-                    Vec3d p(coordInROI.x + commonROI.x, coordInROI.y + commonROI.y, finalDisp.at<float>(coordInROI));
+                float disp = finalDisp.at<float>(coordInROI);
+
+                if (disp != 0 && coordInROI.x > upX && coordInROI.x < botX && coordInROI.y > upY && coordInROI.y < botY) {
+                    Vec3d p(coordInROI.x + commonROI.x, coordInROI.y + commonROI.y, disp);
+                    cout << p << endl;
                     vin2.push_back(p);
                 }
             }
@@ -235,7 +238,7 @@ int main(int argc, char** argv) {
 
             double error = z-(groundTruth-38);
 
-            cout << "true depth = " << groundTruth << ", error = " << error << endl;
+            cout << "true depth = " << groundTruth << ", z = " << z << ", error = " << error << endl;
             outputFile << groundTruth << ", " << error << endl;
             e += (abs(error)/groundTruth)*1000;
             ++iteration;
