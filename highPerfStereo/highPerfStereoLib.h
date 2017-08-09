@@ -48,6 +48,7 @@ public:
     bool applyHistEqualization;
     int blurSize;
     int rejectionMargin;
+    unsigned int occGridSize;
 
     // Laplace parameters (gradient calculation)
     int kernelSize;

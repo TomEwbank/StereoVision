@@ -12,3 +12,9 @@ target_link_libraries(planeErrorEstimation plane linearSystem sparsestereo fade2
 
 add_executable(errorCurve errorCurve.cpp highPerfStereoLib.cpp)
 target_link_libraries(errorCurve plane linearSystem sparsestereo fade2d ${OpenCV_LIBS})
+
+add_executable(singleStereo singleStereo.cpp highPerfStereoLib.cpp)
+target_link_libraries(singleStereo plane linearSystem sparsestereo fade2d ${OpenCV_LIBS})
+
+add_executable(stereoDiscretization stereoDiscretization.cpp)
+target_link_libraries(stereoDiscretization ${OpenCV_LIBS})

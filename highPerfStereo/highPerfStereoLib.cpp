@@ -136,9 +136,39 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
         }
     }
 
-    ConfidentSupport result(leftPoint.x, leftPoint.y, (float) (leftPoint.x-matchingX), h.calculate(censusLeft.ptr<unsigned int>(leftPoint.y)[leftPoint.x], censusRight.ptr<unsigned int>(leftPoint.y)[matchingX]));
+    // Biderectionnal consistency check
+    HammingDistance h2;
+    int minCost2 =  2147483647;//32*5*5;
+    int matchingX2 = leftPoint.x;
+    for(int i = matchingX; i>=halfWindowSize+censusMargin && i<(matchingX+maxDisparity); ++i) {
+        int cost = 0;
+        for (int m=-halfWindowSize; m<=halfWindowSize && leftPoint.y+m < censusLeft.rows; ++m) {
 
-    return result;
+            if (leftPoint.y+m < 0)
+                continue;
+
+            const unsigned int* cl = censusLeft.ptr<unsigned int>(leftPoint.y+m);
+            const unsigned int* cr = censusRight.ptr<unsigned int>(leftPoint.y+m);
+            for (int n = -halfWindowSize; n <= halfWindowSize && i+n < censusLeft.cols; ++n) {
+                cost += (int) h.calculate(cl[matchingX+n], cr[i+n]);
+            }
+        }
+
+        if(cost < minCost2) {
+            matchingX2 = i;
+            minCost2 = cost;
+        }
+    }
+
+    if (abs(matchingX2-leftPoint.x) < 2){
+        ConfidentSupport result(leftPoint.x, leftPoint.y, (float) (leftPoint.x-matchingX), h.calculate(censusLeft.ptr<unsigned int>(leftPoint.y)[leftPoint.x], censusRight.ptr<unsigned int>(leftPoint.y)[matchingX]));
+        return result;
+    } else {
+        ConfidentSupport result(leftPoint.x, leftPoint.y, -1.0, -1.0);
+        return result;
+    }
+
+
 }
 
 void supportResampling(Fade_2D &mesh,
@@ -158,10 +188,12 @@ void supportResampling(Fade_2D &mesh,
             InvalidMatch invalid = ps.getInvalidMatch(i,j);
             if (invalid.cost > tHigh && mesh.locate(Point2(invalid.x,invalid.y)) != NULL) {
                 ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, censusSize, costAggrWindowSize, invalid, maxDisp);
-                if (newSupp.cost<tLow) {
+                //if (newSupp.cost<tLow) {
+                if (newSupp.disparity != -1.0) {
                     disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
                     Point2 p(newSupp.x, newSupp.y);
                     mesh.insert(p);
+                    cout << "newly match support added!" << endl;
                 }
             }
 
@@ -209,6 +241,7 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
     bool applyHistEqualization = parameters.applyHistEqualization;
     int blurSize = parameters.blurSize;
     int rejectionMargin = parameters.rejectionMargin;
+    unsigned int occGridSize = parameters.occGridSize;
 
     // Feature detection parameters
     double adaptivity = parameters.adaptivity;
@@ -239,6 +272,7 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
     leftImg = leftImg.clone();
     rightImg = rightImg.clone();
 
+
     // TODO deal with resize parameter
 //    cv::Mat_<unsigned char> leftImg, rightImg;
 //    resize(leftImgInit, leftImg, Size(), resizeFactor, resizeFactor);
@@ -249,6 +283,9 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
     cv::Rect newROI(0,0,16*(leftImg.cols/16),16*(leftImg.rows/16));
     leftImg = leftImg(newROI);
     rightImg = rightImg(newROI);
+
+    Mat leftInit = leftImg.clone();
+    Mat rightInit = rightImg.clone();
 
     if (applyHistEqualization) {
 
@@ -430,6 +467,11 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
                       (Scalar) color, CV_FILLED);
         }
 
+// TODO remove following
+        // Display image and wait
+        namedWindow("Sparse stereo");
+        imshow("Sparse stereo", leftInit);
+        waitKey();
 
         // Display image and wait
         namedWindow("Sparse stereo");
@@ -460,7 +502,7 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
 
     // Init final cost map
     Mat_<char> finalCosts(leftImg.rows, leftImg.cols, (char) 25);
-    unsigned int occGridSize = 64;
+
 
     for (int iter = 1; iter <= nIters; ++iter) {
 
@@ -494,27 +536,29 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         if (showImages) {
 
             // Find max and min disparity to adjust the color mapping of the depth so that the view will be better
-            minDisparityFound = maxDisp;
-            maxDisparityFound = 0;
+//            minDisparityFound = maxDisp;
+//            maxDisparityFound = 0;
+            minDisparityFound = 10;
+            maxDisparityFound = 80;
             std::vector<GEOM_FADE2D::Point2 *> vAllPoints;
             dt.getVertexPointers(vAllPoints);
 
-            for (std::vector<GEOM_FADE2D::Point2 *>::const_iterator it = vAllPoints.begin();
-                 it < vAllPoints.end();
-                 it++) {
-
-                Point2 *p = *it;
-                int disp = disparities.at<float>(Point(p->x(), p->y()));
-
-                if(disp < minDisparityFound)
-                    minDisparityFound = disp;
-                if(disp > maxDisparityFound)
-                    maxDisparityFound = disp;
-            }
+//            for (std::vector<GEOM_FADE2D::Point2 *>::const_iterator it = vAllPoints.begin();
+//                 it < vAllPoints.end();
+//                 it++) {
+//
+//                Point2 *p = *it;
+//                int disp = disparities.at<float>(Point(p->x(), p->y()));
+//
+//                if(disp < minDisparityFound)
+//                    minDisparityFound = disp;
+//                if(disp > maxDisparityFound)
+//                    maxDisparityFound = disp;
+//            }
 
             // Display mesh
             Mat_<Vec3b> mesh(leftImg.rows, leftImg.cols);
-            cvtColor(leftImg, mesh, CV_GRAY2BGR);
+            cvtColor(leftInit, mesh, CV_GRAY2BGR);
             set<std::pair<Point2 *, Point2 *>>::const_iterator pos;
 
             for (pos = sEdges.begin(); pos != sEdges.end(); ++pos) {

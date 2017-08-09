@@ -167,6 +167,7 @@ int main(int argc, char** argv) {
         params.applyHistEqualization = true;
         params.blurSize = 3;
         params.rejectionMargin = 10;
+        params.occGridSize = 32;
 
         // Feature detection parameters
         params.adaptivity = 0.25;
