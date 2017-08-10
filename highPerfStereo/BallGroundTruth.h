@@ -18,7 +18,7 @@ private:
     int width;
     int height;
 
-    // Depth at which the ball is located
+    // Depth at which the ball is located, in mm.
     double depth;
 
     // Ball parameters
@@ -39,8 +39,24 @@ public:
 
     std::istream& operator<<(std::istream& str);
 
+    /**
+     * @return the real depth of the ball
+     */
     double getDepth();
 
+    /**
+     * Computes the error (in mm) between the real depth of the ball and its approximation based
+     * on a given disparity map and perspective transform.
+     *
+     * @param disparityMap - a semi dense disparity map
+     * @param validDisparities - the coordinates of the points that have a value encoded in the disparity map,
+     * expressed in the reference frame of the region of interest in which the disparity map has been calculated
+     * @param roi - the region of interest mentioned above
+     * @param perspTransform - the transformation matrix obtained from calibration, that allows to convert the
+     * disparities into 3D world points
+     *
+     * @return the error e = depth_approx - real_depth
+     */
     double getDepthError(cv::Mat_<float> disparityMap,
                          std::vector<cv::Point> validDisparities,
                          cv::Rect roi,

@@ -37,6 +37,7 @@ public:
     // Stereo matching parameters
     double uniqueness;
     int maxDisp;
+    int minDisp = 0;
     int leftRightStep;
     int costAggrWindowSize;
     uchar gradThreshold; // [0,255], disparity will be computed only for points with a higher absolute gradient
@@ -213,7 +214,8 @@ PotentialSupports disparityRefinement(const vector<Point>& highGradPts,
 ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
                                   const Mat_<unsigned int>& censusRight,
                                   int censusSize, int costAggrWindowSize,
-                                  InvalidMatch leftPoint, int maxDisparity);
+                                  InvalidMatch leftPoint,
+                                  int minDisparity, int maxDisparity);
 
 void supportResampling(Fade_2D &mesh,
                        PotentialSupports &ps,
@@ -221,7 +223,8 @@ void supportResampling(Fade_2D &mesh,
                        const Mat_<unsigned int> &censusRight,
                        int censusSize, int costAggrWindowSize,
                        Mat_<float> &disparities,
-                       char tLow, char tHigh, int maxDisp);
+                       char tLow, char tHigh,
+                       int minDisp, int maxDisp);
 
 void highPerfStereo(cv::Mat_<unsigned char> leftImg,
                     cv::Mat_<unsigned char> rightImg,

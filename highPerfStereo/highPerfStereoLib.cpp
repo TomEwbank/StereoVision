@@ -91,7 +91,8 @@ PotentialSupports disparityRefinement(const vector<Point>& highGradPts,
 ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
                                   const Mat_<unsigned int>& censusRight,
                                   int censusSize, int costAggrWindowSize,
-                                  InvalidMatch leftPoint, int maxDisparity) {
+                                  InvalidMatch leftPoint,
+                                  int minDisparity, int maxDisparity) {
 
 //    const unsigned int *rightEpipolar = censusRight.ptr<unsigned int>(leftPoint.y);
 //    HammingDistance h;
@@ -116,7 +117,7 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
     int matchingX = leftPoint.x;
     int halfWindowSize = costAggrWindowSize/2;
     int censusMargin = censusSize/2;
-    for(int i = leftPoint.x; i>=halfWindowSize+censusMargin && i>(leftPoint.x-maxDisparity); --i) {
+    for(int i = leftPoint.x-minDisparity; i>=halfWindowSize+censusMargin && i>(leftPoint.x-maxDisparity); --i) {
         int cost = 0;
         for (int m=-halfWindowSize; m<=halfWindowSize && leftPoint.y+m < censusLeft.rows; ++m) {
 
@@ -140,7 +141,7 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
     HammingDistance h2;
     int minCost2 =  2147483647;//32*5*5;
     int matchingX2 = leftPoint.x;
-    for(int i = matchingX; i>=halfWindowSize+censusMargin && i<(matchingX+maxDisparity); ++i) {
+    for(int i = matchingX+minDisparity; i>=halfWindowSize+censusMargin && i<(matchingX+maxDisparity); ++i) {
         int cost = 0;
         for (int m=-halfWindowSize; m<=halfWindowSize && leftPoint.y+m < censusLeft.rows; ++m) {
 
@@ -177,7 +178,8 @@ void supportResampling(Fade_2D &mesh,
                        const Mat_<unsigned int> &censusRight,
                        int censusSize, int costAggrWindowSize,
                        Mat_<float> &disparities,
-                       char tLow, char tHigh, int maxDisp) {
+                       char tLow, char tHigh,
+                       int minDisp, int maxDisp) {
 
     unsigned int occGridHeight = ps.getOccGridHeight();
     unsigned int occGridWidth = ps.getOccGridWidth();
@@ -187,7 +189,7 @@ void supportResampling(Fade_2D &mesh,
             // sparse epipolar stereo matching for invalid pixels and add them to support points
             InvalidMatch invalid = ps.getInvalidMatch(i,j);
             if (invalid.cost > tHigh && mesh.locate(Point2(invalid.x,invalid.y)) != NULL) {
-                ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, censusSize, costAggrWindowSize, invalid, maxDisp);
+                ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, censusSize, costAggrWindowSize, invalid, minDisp, maxDisp);
                 //if (newSupp.cost<tLow) {
                 if (newSupp.disparity != -1.0) {
                     disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
@@ -230,6 +232,7 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
     //TODO decide if some parameters like nIter shouldnt be a particular argument of the function
     double uniqueness = parameters.uniqueness;
     int maxDisp = parameters.maxDisp;
+    int minDisp = parameters.minDisp;
     int leftRightStep = parameters.leftRightStep;
     int costAggrWindowSize = parameters.costAggrWindowSize;
     uchar gradThreshold = parameters.gradThreshold;
@@ -468,10 +471,10 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         }
 
 // TODO remove following
-        // Display image and wait
-        namedWindow("Sparse stereo");
-        imshow("Sparse stereo", leftInit);
-        waitKey();
+//        // Display image and wait
+//        namedWindow("Sparse stereo");
+//        imshow("Sparse stereo", leftInit);
+//        waitKey();
 
         // Display image and wait
         namedWindow("Sparse stereo");
@@ -536,25 +539,25 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         if (showImages) {
 
             // Find max and min disparity to adjust the color mapping of the depth so that the view will be better
-//            minDisparityFound = maxDisp;
-//            maxDisparityFound = 0;
-            minDisparityFound = 10;
-            maxDisparityFound = 80;
+            minDisparityFound = maxDisp;
+            maxDisparityFound = 0;
+//            minDisparityFound = 10;
+//            maxDisparityFound = 80;
             std::vector<GEOM_FADE2D::Point2 *> vAllPoints;
             dt.getVertexPointers(vAllPoints);
 
-//            for (std::vector<GEOM_FADE2D::Point2 *>::const_iterator it = vAllPoints.begin();
-//                 it < vAllPoints.end();
-//                 it++) {
-//
-//                Point2 *p = *it;
-//                int disp = disparities.at<float>(Point(p->x(), p->y()));
-//
-//                if(disp < minDisparityFound)
-//                    minDisparityFound = disp;
-//                if(disp > maxDisparityFound)
-//                    maxDisparityFound = disp;
-//            }
+            for (std::vector<GEOM_FADE2D::Point2 *>::const_iterator it = vAllPoints.begin();
+                 it < vAllPoints.end();
+                 it++) {
+
+                Point2 *p = *it;
+                int disp = disparities.at<float>(Point(p->x(), p->y()));
+
+                if(disp < minDisparityFound)
+                    minDisparityFound = disp;
+                if(disp > maxDisparityFound)
+                    maxDisparityFound = disp;
+            }
 
             // Display mesh
             Mat_<Vec3b> mesh(leftImg.rows, leftImg.cols);
@@ -672,25 +675,10 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         if (iter != nIters) {
 
             // Support resampling
-            supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, disparities, tLow, tHigh, maxDisp);
+            supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, disparities, tLow, tHigh, minDisp, maxDisp);
             occGridSize = max((unsigned int) 1, occGridSize / 2);
         }
     }
-
-//    // Add all support points to disparities
-//    std::vector<GEOM_FADE2D::Point2 *> vAllPoints;
-//    dt.getVertexPointers(vAllPoints);
-//
-//    for (std::vector<GEOM_FADE2D::Point2 *>::const_iterator it = vAllPoints.begin();
-//         it < vAllPoints.end();
-//         it++) {
-//
-//        Point2 *p = *it;
-//        Point pixel(p->x(), p->y());
-//        int disp = disparities.at<float>(pixel);
-//        disparityMap.at<float>(pixel) = disp;
-//        highGradPoints.push_back(pixel);
-//    }
 
     // Clean up
     delete leftFeatureDetector;

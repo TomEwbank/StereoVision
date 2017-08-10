@@ -155,7 +155,8 @@ int main(int argc, char** argv) {
 
         // Stereo matching parameters
         params.uniqueness = 0.5;
-        params.maxDisp = 210;
+        params.maxDisp = 190;
+        params.minDisp = 36;
         params.leftRightStep = 1;
         params.costAggrWindowSize = 11;
         params.gradThreshold = 80; // [0,255], disparity will be computed only for points with a higher absolute gradient
@@ -191,7 +192,7 @@ int main(int argc, char** argv) {
 
         // Generate groundTruth data
         String folderName = "imgs_rectified/";
-        String serie = "ball_woodfloor";//"ball_grassfloor_light";//
+        String serie = "ball_grassfloor_light";//"ball_woodfloor";//
         String groundTruthFile = folderName+"ROI_"+serie+".txt";
         ifstream readFile(groundTruthFile);
         vector<BallGroundTruth> groundTruthVec;
@@ -200,8 +201,8 @@ int main(int argc, char** argv) {
             groundTruthVec.push_back(data);
         }
 
-        String pairName = "1_300_"+serie;
-        String calibFile = folderName+"stereoParams_2205_rotx008.yml";//"stereoParams_2906.yml"; //"stereoCalib_2305_rotx008_nothingInv.yml";//
+        String pairName = "1_200_"+serie;
+        String calibFile = folderName+"stereoCalib_2305_rotx008_nothingInv.yml";//"stereoParams_2205_rotx008.yml";//"stereoParams_2906.yml"; //
 
         ofstream outputFile("ballErrors_"+pairName+".txt");
 
@@ -306,7 +307,7 @@ int main(int argc, char** argv) {
 
             cout << "true depth = " << trueDepth << ", error = " << error << endl;
             outputFile << trueDepth << ", " << error << endl;
-            e += (abs(error)/trueDepth)*1000;
+            e += abs(error);
             ++iteration;
         }
         cout << "mean error = " << e/(iteration-1) << endl;
