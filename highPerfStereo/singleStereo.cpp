@@ -29,28 +29,29 @@ int main(int argc, char** argv) {
         StereoParameters params;
 
         // Stereo matching parameters
-        params.uniqueness = 0.45;
-        params.maxDisp = 120;
+        params.uniqueness = 0.4;
+        params.maxDisp = 190;
+        params.minDisp = 36;
         params.leftRightStep = 1;
-        params.costAggrWindowSize = 5;
-        params.gradThreshold = 80; // [0,255], disparity will be computed only for points with a higher absolute gradient
+        params.costAggrWindowSize = 11;
+        params.gradThreshold = 100; // [0,255], disparity will be computed only for points with a higher absolute gradient
         params.tLow = 2;
-        params.tHigh = 15;
-        params.nIters = 4;
+        params.tHigh = 6;
+        params.nIters = 1;
         params.resizeFactor = 1;
-        params.applyBlur = false;
+        params.applyBlur = true;
         params.applyHistEqualization = true;
         params.blurSize = 3;
         params.rejectionMargin = 10;
         params.occGridSize = 32;
 
         // Feature detection parameters
-        params.adaptivity = 0.25;
-        params.minThreshold = 5;
+        params.adaptivity = 0.1;
+        params.minThreshold = 4;
         params.traceLines = false;
-        params.nbLines = 20;
+        params.nbLines = 40;
         params.lineSize = 2;
-        params.invertRows = true;
+        params.invertRows = false;
         params.nbRows = 20;
 
         // Gradient parameters
@@ -61,7 +62,7 @@ int main(int argc, char** argv) {
 
         // Misc. parameters
         params.recordFullDisp = false;
-        params.showImages = true;
+        params.showImages = false;
         params.colorMapSliding = 60;
 
         // Generate groundTruth data
@@ -79,25 +80,31 @@ int main(int argc, char** argv) {
         fs["Q"] >> Q;
 
 
-            String imNumber = "11";
-            String leftFile = folderName + "left_" + pairName + "_" + imNumber + "_rectified.png";
-            String rightFile = folderName + "right_" + pairName + "_" + imNumber + "_rectified.png";
+        String imNumber = "11";
+        String leftFile = folderName + "left_" + pairName + "_" + imNumber + "_rectified.png";
+        String rightFile = folderName + "right_" + pairName + "_" + imNumber + "_rectified.png";
 
-            // Read input images
-            cv::Mat_<unsigned char> leftImg, rightImg;
-            leftImg = imread(leftFile, CV_LOAD_IMAGE_GRAYSCALE);
-            rightImg = imread(rightFile, CV_LOAD_IMAGE_GRAYSCALE);
+        // Read input images
+        cv::Mat_<unsigned char> leftImg, rightImg;
+        leftImg = imread(leftFile, CV_LOAD_IMAGE_GRAYSCALE);
+        rightImg = imread(rightFile, CV_LOAD_IMAGE_GRAYSCALE);
 
 
-            Mat_<float> finalDisp(commonROI.height, commonROI.width, (float) 0);
-            vector<Point> highGradPoints;
+        Mat_<float> finalDisp(commonROI.height, commonROI.width, (float) 0);
+        vector<Point> highGradPoints;
 
-            if (leftImg.data == NULL || rightImg.data == NULL)
-                throw sparsestereo::Exception("Unable to open input images!");
+        if (leftImg.data == NULL || rightImg.data == NULL)
+            throw sparsestereo::Exception("Unable to open input images!");
 
-            // Compute disparities
-            highPerfStereo(leftImg(commonROI), rightImg(commonROI), params, finalDisp, highGradPoints);
-
+        ptime lastTime;
+        time_duration elapsed;
+        lastTime = microsec_clock::local_time();
+        // Compute disparities
+        highPerfStereo(leftImg(commonROI), rightImg(commonROI), params, finalDisp, highGradPoints);
+        elapsed = (microsec_clock::local_time() - lastTime);
+        double sec = elapsed.total_microseconds() / 1.0e6;
+        double fps = 1/sec;
+        cout << sec << "s ---> " << fps << " FPS" << endl;
 
         return 0;
     }

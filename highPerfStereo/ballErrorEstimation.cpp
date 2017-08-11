@@ -154,27 +154,27 @@ int main(int argc, char** argv) {
         StereoParameters params;
 
         // Stereo matching parameters
-        params.uniqueness = 0.5;
+        params.uniqueness = 0.4;
         params.maxDisp = 190;
         params.minDisp = 36;
         params.leftRightStep = 1;
         params.costAggrWindowSize = 11;
-        params.gradThreshold = 80; // [0,255], disparity will be computed only for points with a higher absolute gradient
-        params.tLow = 3;
-        params.tHigh = 15;
+        params.gradThreshold = 100; // [0,255], disparity will be computed only for points with a higher absolute gradient
+        params.tLow = 2;
+        params.tHigh = 6;
         params.nIters = 1;
         params.resizeFactor = 1;
-        params.applyBlur = false;
+        params.applyBlur = true;
         params.applyHistEqualization = true;
         params.blurSize = 3;
         params.rejectionMargin = 10;
         params.occGridSize = 32;
 
         // Feature detection parameters
-        params.adaptivity = 0.25;
+        params.adaptivity = 0.1;
         params.minThreshold = 4;
         params.traceLines = false;
-        params.nbLines = 20;
+        params.nbLines = 40;
         params.lineSize = 2;
         params.invertRows = false;
         params.nbRows = 20;
@@ -187,12 +187,12 @@ int main(int argc, char** argv) {
 
         // Misc. parameters
         params.recordFullDisp = false;
-        params.showImages = true;
+        params.showImages = false;
         params.colorMapSliding = 60;
 
         // Generate groundTruth data
         String folderName = "imgs_rectified/";
-        String serie = "ball_grassfloor_light";//"ball_woodfloor";//
+        String serie = "ball_obstacles";//"ball_grassfloor";//"ball_grassfloor_light";//"ball_woodfloor";//
         String groundTruthFile = folderName+"ROI_"+serie+".txt";
         ifstream readFile(groundTruthFile);
         vector<BallGroundTruth> groundTruthVec;
@@ -201,8 +201,8 @@ int main(int argc, char** argv) {
             groundTruthVec.push_back(data);
         }
 
-        String pairName = "1_200_"+serie;
-        String calibFile = folderName+"stereoCalib_2305_rotx008_nothingInv.yml";//"stereoParams_2205_rotx008.yml";//"stereoParams_2906.yml"; //
+        String pairName = "50_5_"+serie;
+        String calibFile = folderName+"stereoParams_2906.yml";//"stereoCalib_2305_rotx008_nothingInv.yml";//"stereoParams_2205_rotx008.yml";//
 
         ofstream outputFile("ballErrors_"+pairName+".txt");
 

@@ -143,13 +143,14 @@ void TestRANSAC()
     StereoParameters params;
 
     // Stereo matching parameters
-    params.uniqueness = 0.5;
-    params.maxDisp = 100;
+    params.uniqueness = 0.4;
+    params.maxDisp = 190;
+    params.minDisp = 36;
     params.leftRightStep = 1;
     params.costAggrWindowSize = 11;
     params.gradThreshold = 80; // [0,255], disparity will be computed only for points with a higher absolute gradient
-    params.tLow = 3;
-    params.tHigh = 15;
+    params.tLow = 2;
+    params.tHigh = 6;
     params.nIters = 1;
     params.resizeFactor = 1;
     params.applyBlur = true;
@@ -159,10 +160,10 @@ void TestRANSAC()
     params.occGridSize = 32;
 
     // Feature detection parameters
-    params.adaptivity = 0.25;
+    params.adaptivity = 0.1;
     params.minThreshold = 4;
     params.traceLines = false;
-    params.nbLines = 20;
+    params.nbLines = 40;
     params.lineSize = 2;
     params.invertRows = false;
     params.nbRows = 20;
@@ -180,6 +181,7 @@ void TestRANSAC()
 
     String folderName = "imgs_rectified/";
     String calibFile = folderName+"stereoParams_2906.yml";
+    String serie = "1_200";
 
     FileStorage fs;
     fs.open(calibFile, FileStorage::READ);
@@ -188,48 +190,60 @@ void TestRANSAC()
     Mat Q;
     fs["Q"] >> Q;
 
-    String leftFile = "imgs_rectified/left_1_200_floor_inclination_1_rectified.png";
-    String rightFile = "imgs_rectified/right_1_200_floor_inclination_1_rectified.png";
+    ofstream outputFile("planeErrors_"+serie+".txt");
 
-    // Read input images
-    cv::Mat_<unsigned char> leftImg, rightImg;
-    leftImg = imread(leftFile, CV_LOAD_IMAGE_GRAYSCALE);
-    rightImg = imread(rightFile, CV_LOAD_IMAGE_GRAYSCALE);
+    String imNum[] = {"1","2","3","4","5","7","8","9","10","11"};
+    double trueAlpha[] = {16.0,26.3,21.7,26.5,27.1,38.5,29.8,24.9,26.2,30.8};
+    double trueBeta[] = {-2.5,-2.4,17.5,39.0,-2.2,-2.6,-1.0,-1.9,10.4,11.1};
+
+    for(int k = 0; k<10; ++k) {
+        String leftFile = "imgs_rectified/left_" + serie + "_floor_inclination_" + imNum[k] + "_rectified.png";
+        String rightFile = "imgs_rectified/right_" + serie + "_floor_inclination_" + imNum[k] + "_rectified.png";
+
+        // Read input images
+        cv::Mat_<unsigned char> leftImg, rightImg;
+        leftImg = imread(leftFile, CV_LOAD_IMAGE_GRAYSCALE);
+        rightImg = imread(rightFile, CV_LOAD_IMAGE_GRAYSCALE);
 
 
-    Mat_<float> finalDisp(commonROI.height, commonROI.width, (float) 0);
-    vector<Point> highGradPoints;
+        Mat_<float> finalDisp(commonROI.height, commonROI.width, (float) 0);
+        vector<Point> highGradPoints;
 
-    if (leftImg.data == NULL || rightImg.data == NULL)
-        throw sparsestereo::Exception("Unable to open input images!");
+        if (leftImg.data == NULL || rightImg.data == NULL)
+            throw sparsestereo::Exception("Unable to open input images!");
 
-    // Compute disparities
-    highPerfStereo(leftImg(commonROI), rightImg(commonROI), params, finalDisp, highGradPoints);
+        // Compute disparities
+        highPerfStereo(leftImg(commonROI), rightImg(commonROI), params, finalDisp, highGradPoints);
 
-    // Generate pointCloud
-    std::vector<Vec3d> vin2;
-    for (Point coordInROI : highGradPoints) {
-
-        if (coordInROI.x > 200 && coordInROI.x < 600 && coordInROI.y > 160 && coordInROI.y < 300) {
-            Vec3d p(coordInROI.x + commonROI.x, coordInROI.y + commonROI.y, finalDisp.at<float>(coordInROI));
-            vin2.push_back(p);
+        // Generate pointCloud
+        std::vector<Vec3d> vin2;
+        int pass = 0;
+        for (Point coordInROI : highGradPoints) {
+            if(pass == 4) {
+                if (coordInROI.x > 200 && coordInROI.x < 600 && coordInROI.y > 160 && coordInROI.y < 300) {
+                    Vec3d p(coordInROI.x + commonROI.x, coordInROI.y + commonROI.y, finalDisp.at<float>(coordInROI));
+                    vin2.push_back(p);
+                }
+                pass = 0;
+            } else {
+                ++pass;
+            }
         }
-    }
 
-    std::vector<Vec3d> vout2(vin2.size());
-    perspectiveTransform(vin2, vout2, Q);
-    CMatrixDouble data(3, vout2.size());
-    int i = 0;
-    for (Vec3d point3D : vout2) {
+        std::vector<Vec3d> vout2(vin2.size());
+        perspectiveTransform(vin2, vout2, Q);
+        CMatrixDouble data(3, vout2.size());
+        int i = 0;
+        for (Vec3d point3D : vout2) {
 //        Vec3d point3D = *vout2It;
 //        Point pointInImage = *ptsIt;
 //        pointInImage.x += commonROI.x;
 //        pointInImage.y += commonROI.y;
 
-        data(0, i) = point3D.val[0]/1000;
-        data(1, i) = point3D.val[1]/1000;
-        data(2, i) = point3D.val[2]/1000;
-        ++i;
+            data(0, i) = point3D.val[0] / 1000;
+            data(1, i) = point3D.val[1] / 1000;
+            data(2, i) = point3D.val[2] / 1000;
+            ++i;
 
 //        Vec3b color = colorLeftImg.at<Vec3b>(pointInImage);
 //        double r = color.val[2];
@@ -238,78 +252,98 @@ void TestRANSAC()
 
 //        if (z > 0 && sqrt(pow(x,2)+pow(y,2)+pow(z,2)) < 8000)
 //            outputFile << x << " " << y << " " << z << " " << r << " " << g  << " " << b << endl;
+        }
+
+        // Run RANSAC
+        // ------------------------------------
+        CMatrixDouble best_model;
+        vector_size_t best_inliers;
+        const double DIST_THRESHOLD = 0.003;
+
+        CTicTac tictac;
+        const size_t TIMES = 2000;
+
+        mrpt::math::RANSAC myransac;
+//        for (size_t iters = 0; iters < TIMES; iters++)
+//            myransac.execute(
+//                    data, ransac3Dplane_fit, ransac3Dplane_distance,
+//                    ransac3Dplane_degenerate, DIST_THRESHOLD,
+//                    3,  // Minimum set of points
+//                    best_inliers, best_model,
+//                    iters == 0 ? mrpt::utils::LVL_DEBUG
+//                               : mrpt::utils::LVL_INFO  // Verbose
+//            );
+
+        while(best_inliers.size() < 0.6*data.cols())
+            myransac.execute(
+                    data, ransac3Dplane_fit, ransac3Dplane_distance,
+                    ransac3Dplane_degenerate, DIST_THRESHOLD,
+                    3,  // Minimum set of points
+                    best_inliers, best_model,
+                    mrpt::utils::LVL_DEBUG  // Verbose
+            );
+
+        cout << "Computation time: " << tictac.Tac() * 1000.0 / TIMES << " ms"
+             << endl;
+
+        ASSERT_(size(best_model, 1) == 1 && size(best_model, 2) == 4)
+
+        cout << "RANSAC finished: Best model: " << best_model << endl;
+        cout << "Best inliers: " << best_inliers.size() << endl;
+
+        TPlane plane(
+                best_model(0, 0), best_model(0, 1), best_model(0, 2), best_model(0, 3));
+
+        double PI = 3.14159265;
+        double alpha = atan(best_model(0, 2) / best_model(0, 1)) * 180 / PI;
+        double beta = atan(best_model(0, 0) / best_model(0, 1)) * 180 / PI;
+        double alphaError = alpha - trueAlpha[k];
+        double betaError = beta - trueBeta[k];
+
+        outputFile << std::fixed << std::setprecision(2) << trueAlpha[k] << " & " << trueBeta[k] << " & " << alpha << " & " << alphaError << " & " << beta << " & " << betaError << endl;
+        cout  << "true alpha = " << trueAlpha[k] << ", alpha = " << alpha << ", error =" << alphaError << endl;
+        cout << "true beta = " << trueBeta[k] << ", beta = " << beta << ", error =" << betaError << endl;
+
+        // Show GUI
+        // --------------------------
+        mrpt::gui::CDisplayWindow3D win("Set of points", 500, 500);
+        opengl::COpenGLScene::Ptr scene = std::make_shared<opengl::COpenGLScene>();
+
+        scene->insert(
+                std::make_shared<opengl::CGridPlaneXY>(-20, 20, -20, 20, 0, 1));
+        scene->insert(opengl::stock_objects::CornerXYZ());
+
+        opengl::CPointCloud::Ptr points = std::make_shared<opengl::CPointCloud>();
+        points->setColor(0, 0, 1);
+        points->setPointSize(3);
+        points->enableColorFromZ();
+
+        {
+            std::vector<float> xs, ys, zs;
+
+            data.extractRow(0, xs);
+            data.extractRow(1, ys);
+            data.extractRow(2, zs);
+            points->setAllPointsFast(xs, ys, zs);
+        }
+
+        scene->insert(points);
+
+        opengl::CTexturedPlane::Ptr glPlane =
+                std::make_shared<opengl::CTexturedPlane>(-4, 4, -4, 4);
+
+        CPose3D glPlanePose;
+        plane.getAsPose3D(glPlanePose);
+        glPlane->setPose(glPlanePose);
+
+        scene->insert(glPlane);
+
+        win.get3DSceneAndLock() = scene;
+        win.unlockAccess3DScene();
+        win.forceRepaint();
+
+        win.waitForKey();
     }
-
-    // Run RANSAC
-    // ------------------------------------
-    CMatrixDouble best_model;
-    vector_size_t best_inliers;
-    const double DIST_THRESHOLD = 0.001;
-
-    CTicTac tictac;
-    const size_t TIMES = 1000;
-
-    mrpt::math::RANSAC myransac;
-    for (size_t iters = 0; iters < TIMES; iters++)
-        myransac.execute(
-                data, ransac3Dplane_fit, ransac3Dplane_distance,
-                ransac3Dplane_degenerate, DIST_THRESHOLD,
-                3,  // Minimum set of points
-                best_inliers, best_model,
-                iters == 0 ? mrpt::utils::LVL_DEBUG
-                           : mrpt::utils::LVL_INFO  // Verbose
-        );
-
-    cout << "Computation time: " << tictac.Tac() * 1000.0 / TIMES << " ms"
-         << endl;
-
-    ASSERT_(size(best_model, 1) == 1 && size(best_model, 2) == 4)
-
-    cout << "RANSAC finished: Best model: " << best_model << endl;
-    //	cout << "Best inliers: " << best_inliers << endl;
-
-    TPlane plane(
-            best_model(0, 0), best_model(0, 1), best_model(0, 2), best_model(0, 3));
-
-    // Show GUI
-    // --------------------------
-    mrpt::gui::CDisplayWindow3D win("Set of points", 500, 500);
-    opengl::COpenGLScene::Ptr scene = std::make_shared<opengl::COpenGLScene>();
-
-    scene->insert(
-            std::make_shared<opengl::CGridPlaneXY>(-20, 20, -20, 20, 0, 1));
-    scene->insert(opengl::stock_objects::CornerXYZ());
-
-    opengl::CPointCloud::Ptr points = std::make_shared<opengl::CPointCloud>();
-    points->setColor(0, 0, 1);
-    points->setPointSize(3);
-    points->enableColorFromZ();
-
-    {
-        std::vector<float> xs, ys, zs;
-
-        data.extractRow(0, xs);
-        data.extractRow(1, ys);
-        data.extractRow(2, zs);
-        points->setAllPointsFast(xs, ys, zs);
-    }
-
-    scene->insert(points);
-
-    opengl::CTexturedPlane::Ptr glPlane =
-            std::make_shared<opengl::CTexturedPlane>(-4, 4, -4, 4);
-
-    CPose3D glPlanePose;
-    plane.getAsPose3D(glPlanePose);
-    glPlane->setPose(glPlanePose);
-
-    scene->insert(glPlane);
-
-    win.get3DSceneAndLock() = scene;
-    win.unlockAccess3DScene();
-    win.forceRepaint();
-
-    win.waitForKey();
 }
 
 // ------------------------------------------------------
