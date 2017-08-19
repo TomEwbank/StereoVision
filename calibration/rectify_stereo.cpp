@@ -2,13 +2,15 @@
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <stdio.h>
+//#include <stdio.h>
 #include <iostream>
-#include <string>
-#include <dirent.h>
+//#include <string>
+//#include <dirent.h>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 using namespace std;
 using namespace cv;
+using namespace boost::posix_time;
 
 
 int main(int argc, char const *argv[])
@@ -16,7 +18,7 @@ int main(int argc, char const *argv[])
     String inputFolder = "imgs_to_rectify/";
     String outputFolder = "imgs_rectified/";
     String calibFile = inputFolder+"stereoParams_2906.yml";//"stereoParams_2205_rotx008.yml";//"stereoCalib_2305_rotx008_nothingInv.yml";//"stereoParams_2806_windows_camUntouched.yml";//
-    String pairName = "1_200_floor_inclination";
+    String pairName = "20_50_floor_inclination";
     String imageExtension = ".ppm";
     int imgsNumber = 12;
 
@@ -78,14 +80,18 @@ int main(int argc, char const *argv[])
 
     fs1.release();
 
-
+    double t=0;
     // Rectify the images
     for (int i=1; i <= imgsNumber; ++i) {
+
 
         String imNumber = std::to_string(i);
         Mat img1 = imread(inputFolder+"left_"+pairName+"_"+imNumber+imageExtension, CV_LOAD_IMAGE_COLOR);
         Mat img2 = imread(inputFolder+"right_"+pairName+"_"+imNumber+imageExtension, CV_LOAD_IMAGE_COLOR);
 
+        ptime lastTime;
+        time_duration elapsed;
+        lastTime = microsec_clock::local_time();
         cv::Mat lmapx, lmapy, rmapx, rmapy;
         cv::Mat imgU1, imgU2;
 
@@ -94,9 +100,14 @@ int main(int argc, char const *argv[])
         cv::remap(img1, imgU1, lmapx, lmapy, cv::INTER_LINEAR);
         cv::remap(img2, imgU2, rmapx, rmapy, cv::INTER_LINEAR);
 
+        elapsed = (microsec_clock::local_time() - lastTime);
+        t += elapsed.total_microseconds() / 1.0e6;
+
         imwrite(outputFolder + "left_" + pairName + "_" + imNumber + "_rectified.png", imgU1);
         imwrite(outputFolder + "right_" + pairName + "_" + imNumber + "_rectified.png", imgU2);
     }
+    t = t/imgsNumber;
+    cout << t << "ms " << 1/t << "fps" << endl;
 
     return 0;
 }

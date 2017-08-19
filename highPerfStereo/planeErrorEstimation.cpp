@@ -143,12 +143,12 @@ void TestRANSAC()
     StereoParameters params;
 
     // Stereo matching parameters
-    params.uniqueness = 0.4;
-    params.maxDisp = 190;
+    params.uniqueness = 0.35;
+    params.maxDisp = 100;
     params.minDisp = 36;
-    params.leftRightStep = 1;
+    params.leftRightStep = 4;
     params.costAggrWindowSize = 11;
-    params.gradThreshold = 80; // [0,255], disparity will be computed only for points with a higher absolute gradient
+    params.gradThreshold = 150; // [0,255], disparity will be computed only for points with a higher absolute gradient
     params.tLow = 2;
     params.tHigh = 6;
     params.nIters = 1;
@@ -160,11 +160,11 @@ void TestRANSAC()
     params.occGridSize = 32;
 
     // Feature detection parameters
-    params.adaptivity = 0.1;
-    params.minThreshold = 4;
+    params.adaptivity = 0.4;
+    params.minThreshold = 2;
     params.traceLines = false;
-    params.nbLines = 40;
-    params.lineSize = 2;
+    params.nbLines = 20;
+    params.lineSize = 4;
     params.invertRows = false;
     params.nbRows = 20;
 
@@ -181,7 +181,7 @@ void TestRANSAC()
 
     String folderName = "imgs_rectified/";
     String calibFile = folderName+"stereoParams_2906.yml";
-    String serie = "1_200";
+    String serie = "20_50";
 
     FileStorage fs;
     fs.open(calibFile, FileStorage::READ);
@@ -258,7 +258,7 @@ void TestRANSAC()
         // ------------------------------------
         CMatrixDouble best_model;
         vector_size_t best_inliers;
-        const double DIST_THRESHOLD = 0.003;
+        const double DIST_THRESHOLD = 0.005;
 
         CTicTac tictac;
         const size_t TIMES = 2000;
@@ -274,7 +274,7 @@ void TestRANSAC()
 //                               : mrpt::utils::LVL_INFO  // Verbose
 //            );
 
-        while(best_inliers.size() < 0.6*data.cols())
+        while(best_inliers.size() < 0.7*data.cols())
             myransac.execute(
                     data, ransac3Dplane_fit, ransac3Dplane_distance,
                     ransac3Dplane_degenerate, DIST_THRESHOLD,

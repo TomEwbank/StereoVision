@@ -168,7 +168,7 @@ double BallGroundTruth::getDepthError(cv::Mat_<float> disparityMap,
 //
 //    double meanZ = zSum/vOut.size();
 //
-//    return meanZ-depth;
+//    return meanZ-depth-69.23;
 }
 
 const std::list<cv::Point2i> &BallGroundTruth::getBallPixels() const {

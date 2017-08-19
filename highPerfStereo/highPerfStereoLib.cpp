@@ -296,6 +296,13 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         equalizeHist(rightImg, rightImg);
     }
 
+    if (showImages) {
+        // Show what you got
+        namedWindow("Equalized img");
+        imshow("Equalized img", leftImg);
+        waitKey(0);
+    }
+
     // Apply Laplace function
     Mat grd, abs_grd;
 
@@ -334,16 +341,16 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         waitKey(0);
     }
 
-    if (applyBlur) {
-        GaussianBlur(leftImg, leftImg, Size(blurSize, blurSize), 0, 0);
-        GaussianBlur(rightImg, rightImg, Size(blurSize, blurSize), 0, 0);
-    }
-
 
     // Horizontal lines tracing in images for better feature detection
     cv::Mat_<unsigned char> leftImgAltered, rightImgAltered;
     leftImgAltered = leftImg.clone();
     rightImgAltered = rightImg.clone();
+
+    if (applyBlur) {
+        GaussianBlur(leftImgAltered, leftImgAltered, Size(3, 3), 0, 0);
+        GaussianBlur(rightImgAltered, rightImgAltered, Size(3, 3), 0, 0);
+    }
 
     if (invertRows) {
         int rowSize = (leftImgAltered.rows / nbRows)+1;
@@ -391,6 +398,11 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         namedWindow("right altered image");
         imshow("right altered image", rightImgAltered);
         waitKey(0);
+    }
+
+    if (applyBlur) {
+        GaussianBlur(leftImg, leftImg, Size(blurSize, blurSize), 0, 0);
+        GaussianBlur(rightImg, rightImg, Size(blurSize, blurSize), 0, 0);
     }
 
     // Load rectification data
@@ -541,8 +553,6 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
             // Find max and min disparity to adjust the color mapping of the depth so that the view will be better
             minDisparityFound = maxDisp;
             maxDisparityFound = 0;
-//            minDisparityFound = 10;
-//            maxDisparityFound = 80;
             std::vector<GEOM_FADE2D::Point2 *> vAllPoints;
             dt.getVertexPointers(vAllPoints);
 
