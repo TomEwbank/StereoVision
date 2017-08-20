@@ -565,7 +565,8 @@ int main(int argc, char** argv) {
 
                 // Support resampling
                 lastTime = microsec_clock::local_time();
-                supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, disparities, tLow, tHigh, maxDisp);
+                supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, tLow, tHigh, maxDisp, 0,
+                                  disparities);
                 occGridSize = max((unsigned int) 1, occGridSize / 2);
                 elapsed = (microsec_clock::local_time() - lastTime);
                 cout << "Time for support resampling: " << elapsed.total_microseconds() / 1.0e6 << "s" << endl;

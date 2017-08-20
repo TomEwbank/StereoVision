@@ -217,14 +217,9 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
                                   InvalidMatch leftPoint,
                                   int minDisparity, int maxDisparity);
 
-void supportResampling(Fade_2D &mesh,
-                       PotentialSupports &ps,
-                       const Mat_<unsigned int> &censusLeft,
-                       const Mat_<unsigned int> &censusRight,
-                       int censusSize, int costAggrWindowSize,
-                       Mat_<float> &disparities,
-                       char tLow, char tHigh,
-                       int minDisp, int maxDisp);
+void supportResampling(Fade_2D &mesh, PotentialSupports &ps, const Mat_<unsigned int> &censusLeft,
+                       const Mat_<unsigned int> &censusRight, int censusSize, int costAggrWindowSize, char tLow,
+                       char tHigh, int minDisp, int maxDisp, Mat_<float> &disparities);
 
 void highPerfStereo(cv::Mat_<unsigned char> leftImg,
                     cv::Mat_<unsigned char> rightImg,

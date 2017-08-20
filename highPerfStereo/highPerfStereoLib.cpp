@@ -172,14 +172,9 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
 
 }
 
-void supportResampling(Fade_2D &mesh,
-                       PotentialSupports &ps,
-                       const Mat_<unsigned int> &censusLeft,
-                       const Mat_<unsigned int> &censusRight,
-                       int censusSize, int costAggrWindowSize,
-                       Mat_<float> &disparities,
-                       char tLow, char tHigh,
-                       int minDisp, int maxDisp) {
+void supportResampling(Fade_2D &mesh, PotentialSupports &ps, const Mat_<unsigned int> &censusLeft,
+                       const Mat_<unsigned int> &censusRight, int censusSize, int costAggrWindowSize, char tLow,
+                       char tHigh, int minDisp, int maxDisp, Mat_<float> &disparities) {
 
     unsigned int occGridHeight = ps.getOccGridHeight();
     unsigned int occGridWidth = ps.getOccGridWidth();
@@ -685,7 +680,8 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         if (iter != nIters) {
 
             // Support resampling
-            supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, disparities, tLow, tHigh, minDisp, maxDisp);
+            supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, tLow, tHigh, minDisp, maxDisp,
+                              disparities);
             occGridSize = max((unsigned int) 1, occGridSize / 2);
         }
     }

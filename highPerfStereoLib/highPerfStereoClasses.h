@@ -1,5 +1,5 @@
 /*
- *  Classes for the high performance stereo matching library
+ *  utility classes for the high performance semi-dense stereo matching
  *
  *  Developed in the context of the master thesis:
  *      "Efficient and precise stereoscopic vision for humanoid robots"
@@ -116,6 +116,7 @@ public:
 
     /**
      * Constructor specifying the plane parameters
+     *
      * @param a
      * @param b
      * @param c
@@ -127,6 +128,7 @@ public:
      * the coordinates u and v of the vertices are given by a 2D triangle,
      * and the 3rd coordinate d of each vertex is located at the point
      * (u,v) of a given matrix (disparity map).
+     *
      * @param t - the triangle
      * @param disparities - the matrix
      */
@@ -134,14 +136,18 @@ public:
 
     /**
      * Get the d coordinate of the point in the plane at coordinates (u,v)
+     *
      * @param p - the point (u,v)
+     *
      * @return the d coordinate
      */
     float getDepth(Point p);
 
     /**
      * Get the d coordinate of the point in the plane at coordinates (u,v)
+     *
      * @param p - the point (u,v)
+     *
      * @return the d coordinate
      */
     float getDepth(Point2 p);
@@ -194,6 +200,7 @@ public:
 
     /**
      * Set the pixel (x,y) as the confident support of the cell (u,v) in the occupancy grid
+     *
      * @param u
      * @param v
      * @param x
@@ -205,6 +212,7 @@ public:
 
     /**
      * Set the pixel (x,y) as the invalid match of the cell (u,v) in the occupancy grid
+     *
      * @param u
      * @param v
      * @param x
@@ -216,6 +224,7 @@ public:
     /**
      * @param u
      * @param v
+     *
      * @return the confident support point at position (u,v) in the occupancy grid
      */
     ConfidentSupport getConfidentSupport(int u, int v);
@@ -223,6 +232,7 @@ public:
     /**
      * @param u
      * @param v
+     *
      * @return the invalid match at position (u,v) in the occupancy grid
      */
     InvalidMatch getInvalidMatch(int u, int v);

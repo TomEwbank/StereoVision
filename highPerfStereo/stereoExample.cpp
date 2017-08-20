@@ -64,9 +64,13 @@ int main(int argc, char** argv) {
         String rightFile = folderName + "right_" + pairName + fileExtension;
 
         // Read input images
-        cv::Mat_<unsigned char> leftImg, rightImg, leftRectImg, rightRectImg;
+        cv::Mat leftImg, rightImg, leftRectImg, rightRectImg, leftColorImg, leftColRectImg;
+        // Load grayscale images to input in the stereo matching algorithm
         leftImg = imread(leftFile, CV_LOAD_IMAGE_GRAYSCALE);
         rightImg = imread(rightFile, CV_LOAD_IMAGE_GRAYSCALE);
+        // Load the left color images to color the 3D point cloud
+        leftColorImg = imread(leftFile, CV_LOAD_IMAGE_COLOR);
+
 
         if (leftImg.data == NULL || rightImg.data == NULL)
             throw invalid_argument("Unable to open input images!");
@@ -108,6 +112,7 @@ int main(int argc, char** argv) {
         // Rectify the images
         cv::remap(leftImg, leftRectImg, lmapx, lmapy, cv::INTER_LINEAR);
         cv::remap(rightImg, rightRectImg, rmapx, rmapy, cv::INTER_LINEAR);
+        cv::remap(leftColorImg, leftColRectImg, lmapx, lmapy, cv::INTER_LINEAR);
 
         // Init disparity map and vector of high gradient points
         cv::Mat_<float> finalDisp(commonROI.height, commonROI.width, (float) 0);
@@ -115,6 +120,51 @@ int main(int argc, char** argv) {
 
         // Compute the disparity map
         highPerfStereo(leftRectImg(commonROI), rightRectImg(commonROI), params, finalDisp, highGradPoints);
+
+
+        // Generate a 3D pointCloud file that can be read in a software like MeshLab
+        std::vector<Vec3d> vin(highGradPoints.size());
+        std::vector<Point>::iterator ptsIt;
+        std::vector<Vec3d>::iterator vinIter;
+        for (ptsIt = highGradPoints.begin(), vinIter = vin.begin();
+             ptsIt < highGradPoints.end();
+             ptsIt++, vinIter++) {
+
+            Point coordInROI = *ptsIt;
+            Vec3d p(coordInROI.x+commonROI.x, coordInROI.y+commonROI.y, finalDisp.at<float>(coordInROI));
+            *vinIter = p;
+        }
+
+        std::vector<Vec3d> points3D(highGradPoints.size());
+        perspectiveTransform(vin, points3D, Q);
+
+        ofstream outputFile("pointCloud_"+pairName+".txt");
+        std::vector<Vec3d>::iterator points3Diter;
+        for (ptsIt = highGradPoints.begin(), points3Diter = points3D.begin();
+             points3Diter < points3D.end();
+             points3Diter++, ptsIt++) {
+
+            Vec3d point3D = *points3Diter;
+            Point pointInImage = *ptsIt;
+            pointInImage.x += commonROI.x;
+            pointInImage.y += commonROI.y;
+
+            double x = point3D.val[0];
+            double y = point3D.val[1];
+            double z = point3D.val[2];
+
+            Vec3b color = leftColRectImg.at<Vec3b>(pointInImage);
+            double r = color.val[2];
+            double g = color.val[1];
+            double b = color.val[0];
+
+            // Filter the generated 3D points, as not every high
+            // gradient point might have received a disparity
+            // + keep only the points whose depth is below 3 meters
+            if (z > 0 && sqrt(pow(x,2)+pow(y,2)+pow(z,2)) < 3000)
+                outputFile << x << " " << y << " " << z << " " << r << " " << g  << " " << b << endl;
+        }
+        outputFile.close();
 
         return 0;
     }

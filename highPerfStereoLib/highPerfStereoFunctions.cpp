@@ -67,8 +67,6 @@ void line2(Mat& img, const Point& start, const Point& end,
 
     for (int i = 0; i < iter.count; i++, iter++) {
         double alpha = double(i) / iter.count;
-        // note: using img.at<T>(iter.pos()) is faster, but
-        // then you have to deal with mat type and channel number yourself
         img(Rect(iter.pos(), Size(1, 1))) = c1 * (1.0 - alpha) + c2 * alpha;
     }
 }
@@ -117,7 +115,7 @@ void costEvaluation(const Mat_<unsigned int>& censusLeft,
 
     HammingDistance h;
     vector<Point>::const_iterator i;
-    for( i = highGradPts.begin(); i != highGradPts.end(); i++){
+    for(i = highGradPts.begin(); i != highGradPts.end(); i++){
         float d = disparities.ptr<float>(i->y)[i->x];
         int xRight = i->x-(int)floor(d+0.5);
 
@@ -141,9 +139,8 @@ PotentialSupports disparityRefinement(const vector<Point>& highGradPts,
                                       Mat_<float>& finalDisparities,
                                       Mat_<char>& finalCosts) {
 
-    unsigned int occGridHeight = (unsigned int) (disparities.rows/occGridSize) + 1;
-    unsigned int occGridWidth = (unsigned int) (disparities.cols/occGridSize) +1;
-    // TODO: ensure no more bugs at limits of grid
+    unsigned int occGridHeight = (disparities.rows/occGridSize) + 1;
+    unsigned int occGridWidth = (disparities.cols/occGridSize) + 1;
 
     PotentialSupports ps(occGridHeight, occGridWidth, tLow, tHigh);
 
@@ -243,25 +240,19 @@ ConfidentSupport epipolarMatching(const Mat_<unsigned int>& censusLeft,
 
 }
 
-void supportResampling(Fade_2D &mesh,
-                       PotentialSupports &ps,
-                       const Mat_<unsigned int> &censusLeft,
-                       const Mat_<unsigned int> &censusRight,
-                       int censusSize, int costAggrWindowSize,
-                       Mat_<float> &disparities,
-                       char tLow, char tHigh,
-                       int minDisp, int maxDisp) {
+void supportResampling(Fade_2D &mesh, PotentialSupports &ps, const Mat_<unsigned int> &censusLeft,
+                       const Mat_<unsigned int> &censusRight, int censusSize, int costAggrWindowSize, char tLow,
+                       char tHigh, int minDisp, int maxDisp, Mat_<float> &disparities) {
 
     unsigned int occGridHeight = ps.getOccGridHeight();
     unsigned int occGridWidth = ps.getOccGridWidth();
     for (unsigned int j = 0; j < occGridHeight; ++j) {
         for (unsigned int i = 0; i < occGridWidth; ++i) {
 
-            // sparse epipolar stereo matching for invalid pixels and add them to support points
+            // sparse epipolar stereo matching for invalid pixels and add them to support points if success
             InvalidMatch invalid = ps.getInvalidMatch(i,j);
             if (invalid.cost > tHigh && mesh.locate(Point2(invalid.x,invalid.y)) != NULL) {
                 ConfidentSupport newSupp = epipolarMatching(censusLeft, censusRight, censusSize, costAggrWindowSize, invalid, minDisp, maxDisp);
-                //if (newSupp.cost<tLow) {
                 if (newSupp.disparity != -1.0) {
                     disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
                     Point2 p(newSupp.x, newSupp.y);
@@ -271,7 +262,6 @@ void supportResampling(Fade_2D &mesh,
 
             // add confident pixels to support points
             ConfidentSupport newSupp = ps.getConfidentSupport(i,j);
-            //cout << newSupp.x << " " << newSupp.y << endl;
             if (newSupp.cost < tLow && mesh.locate(Point2(newSupp.x,newSupp.y)) != NULL) {
                 disparities.ptr<float>(newSupp.y)[newSupp.x] = newSupp.disparity;
                 Point2 p(newSupp.x, newSupp.y);
@@ -376,7 +366,6 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
     }
 
     // Get the set of high gradient points
-    int v = 0;
     Mat highGradMask(grd.rows, grd.cols, CV_8U, Scalar(0));
     // The census window and the laplacian transform are not calculated on a margin all around the image because
     // of the kernel window size needed to compute these transformations for each pixel.
@@ -386,9 +375,9 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         uchar* pixel = abs_grd.ptr(j);
         for (int i = margin; i < abs_grd.cols-margin; ++i) {
             if (pixel[i] > gradThreshold) {
-                highGradPoints.push_back(Point(i, j));
-                highGradMask.at<uchar>(highGradPoints[v]) = (uchar) 200;
-                ++v;
+                Point p(i,j);
+                highGradPoints.push_back(p);
+                highGradMask.at<uchar>(p) = (uchar) 200;
             }
         }
     }
@@ -451,11 +440,8 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
 
     if (showImages) {
         // Show what you got
-        namedWindow("left altered image");
-        imshow("left altered image", leftImgAltered);
-        waitKey(0);
-        namedWindow("right altered image");
-        imshow("right altered image", rightImgAltered);
+        namedWindow("Altered image");
+        imshow("Altered image", leftImgAltered);
         waitKey(0);
     }
 
@@ -466,8 +452,6 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
 
     // Load rectification data
     StereoRectification* rectification = NULL;
-//        if(calibFile != NULL)
-//            rectification = new StereoRectification(CalibrationResult(calibFile));
 
     // The stereo matcher. SSE Optimized implementation is only available for a 5x5 window
     SparseStereo<CensusWindow<5>, short> stereo(maxDisp, 1, uniqueness,
@@ -541,12 +525,6 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
                       (Scalar) color, CV_FILLED);
         }
 
-// TODO remove following
-//        // Display image and wait
-//        namedWindow("Sparse stereo");
-//        imshow("Sparse stereo", leftInit);
-//        waitKey();
-
         // Display image and wait
         namedWindow("Sparse stereo");
         imshow("Sparse stereo", screen);
@@ -575,12 +553,13 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
     }
 
     // Init final cost map
-    Mat_<char> finalCosts(leftImg.rows, leftImg.cols, (char) 25);
+    Mat_<char> finalCosts(leftImg.rows, leftImg.cols, tHigh);
 
 
     for (int iter = 1; iter <= nIters; ++iter) {
 
         // Fill lookup table for plane parameters
+        // (Possible optimization: do not recompute the complete lookup table at each iteration)
         unordered_map<MeshTriangle, Plane> planeTable;
         std::set<std::pair<Point2 *, Point2 *> > sEdges;
         std::vector<Triangle2 *> vAllTriangles;
@@ -594,7 +573,6 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
                 Plane plane = Plane(*it, disparities);
                 planeTable[mt] = plane;
             }
-            // TODO optimize by not recompute plane parameters for unchanged triangles
 
             if (showImages) {
                 // Use this loop over the triangles to retrieve all unique edges to display
@@ -656,8 +634,6 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
             waitKey();
         }
 
-
-        // TODO interpolate disparities for high grad points only, even if no showing images
         // Disparity interpolation
         if (showImages || recordFullDisp) {
             // interpolate on the complete image to be able to display the dense disparity map, or record it
@@ -743,7 +719,8 @@ void highPerfStereo(cv::Mat_<unsigned char> leftImg,
         if (iter != nIters) {
 
             // Support resampling
-            supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, disparities, tLow, tHigh, minDisp, maxDisp);
+            supportResampling(dt, ps, censusLeft, censusRight, 5, costAggrWindowSize, tLow, tHigh, minDisp, maxDisp,
+                              disparities);
             occGridSize = max((unsigned int) 1, occGridSize / 2);
         }
     }
