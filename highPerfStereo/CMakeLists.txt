@@ -18,3 +18,6 @@ target_link_libraries(singleStereo plane linearSystem sparsestereo fade2d ${Open
 
 add_executable(stereoDiscretization stereoDiscretization.cpp)
 target_link_libraries(stereoDiscretization ${OpenCV_LIBS})
+
+add_executable(stereoExample stereoExample.cpp)
+target_link_libraries(stereoExample highPerfStereoLib sparsestereo fade2d ${OpenCV_LIBS})
